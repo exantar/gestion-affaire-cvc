@@ -1,0 +1,741 @@
+﻿<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Gestion d'affaires CVC</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <aside class="sidebar" aria-label="Navigation affaires">
+        <div class="brand">
+          <div class="brand-mark" aria-hidden="true">CVC</div>
+          <div>
+            <strong>Pilotage CVC</strong>
+            <span>Chantiers ou Go/No-Go</span>
+          </div>
+        </div>
+
+        <div class="space-switch" aria-label="Choix de l'espace">
+          <button id="projectSpaceBtn" class="space-button is-active" data-space="chantiers" type="button">Chantiers</button>
+          <button id="goNoGoSpaceBtn" class="space-button" data-space="gonogo" type="button">Go / No-Go</button>
+          <button id="todoSpaceBtn" class="space-button" data-space="todolist" type="button">Todo List</button>
+        </div>
+
+        <div class="todo-view-tabs" aria-label="Menu Todo List">
+          <button id="todoTasksViewBtn" class="todo-view-tab is-active" type="button">Tâches</button>
+          <button id="todoPlanningViewBtn" class="todo-view-tab" type="button">Planning tâches</button>
+        </div>
+
+        <label class="search-box">
+          <span>Recherche</span>
+          <input id="searchInput" type="search" placeholder="Client, ville, lot..." />
+        </label>
+
+        <div class="section-tabs" aria-label="Onglets métier">
+          <button class="section-tab is-active" data-tab="synthese" type="button">Synthèse</button>
+          <button class="section-tab" data-tab="achats" type="button">Achats</button>
+          <button class="section-tab" data-tab="fae" type="button">FAE</button>
+          <button class="section-tab" data-tab="heures" type="button">Heures</button>
+          <button class="section-tab" data-tab="technicien" type="button">Technicien</button>
+        </div>
+
+        <div id="projectList" class="project-list" aria-live="polite"></div>
+      </aside>
+
+      <main class="workspace">
+        <header class="topbar">
+          <div>
+            <p class="eyebrow">Pilotage d'affaires</p>
+            <h1 id="projectTitle">Chargement</h1>
+            <p id="projectSubtitle" class="muted"></p>
+          </div>
+          <div class="topbar-actions">
+            <button id="techModeBtn" class="secondary-button" type="button">
+              <span aria-hidden="true">H</span>
+              Espace technicien
+            </button>
+            <button id="exportBtn" class="icon-button" type="button" title="Exporter les données" aria-label="Exporter les données">
+              <span aria-hidden="true">⇩</span>
+            </button>
+            <button id="resetBtn" class="icon-button" type="button" title="Réinitialiser la démo" aria-label="Réinitialiser la démo">
+              <span aria-hidden="true">↺</span>
+            </button>
+            <button id="deleteProjectBtn" class="icon-button danger-button" type="button" title="Supprimer le chantier" aria-label="Supprimer le chantier">
+              <span aria-hidden="true">×</span>
+            </button>
+            <button id="newProjectBtn" class="primary-button" type="button">
+              <span aria-hidden="true">+</span>
+              Nouvelle affaire
+            </button>
+          </div>
+        </header>
+
+        <section id="technicianView" class="technician-view is-hidden" aria-label="Saisie des heures technicien">
+          <div class="tech-shell">
+            <section class="panel tech-entry-panel">
+              <div class="panel-heading">
+                <div>
+                  <p class="eyebrow">Saisie terrain</p>
+                  <h2>Entrer mes heures</h2>
+                  <p class="muted">Vue limitée aux techniciens, sans budget ni données financières.</p>
+                </div>
+                <button id="managerModeBtn" class="secondary-button" type="button">
+                  <span aria-hidden="true">←</span>
+                  Retour gestion
+                </button>
+              </div>
+
+              <form id="timeEntryForm" class="time-entry-form">
+                <label>
+                  Chantier
+                  <select id="techProjectSelect" required></select>
+                </label>
+                <label>
+                  Technicien
+                  <input id="techNameInput" type="text" required placeholder="Nom du technicien" />
+                </label>
+                <label>
+                  Date
+                  <input id="techDateInput" type="date" required />
+                </label>
+                <label>
+                  Lot / thème
+                  <select id="techThemeSelect" required></select>
+                </label>
+                <label>
+                  Intervention
+                  <input id="techTaskInput" type="text" required placeholder="Ex. Pose gaines, essais, reprise réserve..." />
+                </label>
+                <label>
+                  Heures
+                  <input id="techHoursInput" type="number" min="0" step="0.25" required placeholder="7.5" />
+                </label>
+                <label class="time-entry-notes">
+                  Commentaire
+                  <textarea id="techNoteInput" rows="4" placeholder="Zone, avancement, problème rencontré..."></textarea>
+                </label>
+                <button class="primary-button time-entry-submit" type="submit">
+                  <span aria-hidden="true">+</span>
+                  Enregistrer les heures
+                </button>
+              </form>
+            </section>
+
+            <section class="panel tech-history-panel">
+              <div class="panel-heading">
+                <div>
+                  <h2>Dernières saisies</h2>
+                  <p class="muted">Contrôle rapide avant synchronisation avec le suivi heures.</p>
+                </div>
+              </div>
+              <div id="techEntryList" class="tech-entry-list"></div>
+            </section>
+
+            <section class="panel tech-planning-panel">
+              <div class="panel-heading">
+                <div>
+                  <h2>Planning hebdomadaire</h2>
+                  <p class="muted">Tâches prévues sur le chantier sélectionné, par semaine.</p>
+                </div>
+              </div>
+              <div id="techPlanningList" class="planning-list tech-planning-list"></div>
+            </section>
+          </div>
+        </section>
+
+        <div id="managementView">
+        <section class="kpi-grid" data-panel="synthese" aria-label="Indicateurs clés">
+          <article class="kpi">
+            <span>CA signé</span>
+            <strong id="kpiRevenue">0 €</strong>
+            <small id="kpiProgress">0% avancement</small>
+          </article>
+          <article class="kpi">
+            <span>Marge prévue</span>
+            <strong id="kpiMargin">0 €</strong>
+            <small id="kpiMarginRate">0%</small>
+          </article>
+          <article class="kpi">
+            <span>Dépenses engagées</span>
+            <strong id="kpiCommitted">0 €</strong>
+            <small id="kpiRemaining">Reste 0 €</small>
+          </article>
+          <article class="kpi kpi-alert">
+            <span>Points ouverts</span>
+            <strong id="kpiOpenActions">0</strong>
+            <small id="kpiNextMilestone">Aucun jalon</small>
+          </article>
+        </section>
+
+        <section class="content-grid">
+          <div class="main-column">
+            <section class="panel" data-panel="synthese">
+              <div class="panel-heading">
+                <div>
+                  <h2>Synthèse chantier</h2>
+                  <p class="muted">Avancement, jalons, budget et lots techniques.</p>
+                </div>
+                <select id="statusSelect" aria-label="Statut de l'affaire">
+                  <option value="etude">Étude</option>
+                  <option value="travaux">Travaux</option>
+                  <option value="reception">Réception</option>
+                </select>
+              </div>
+
+              <div class="summary-layout">
+                <div class="progress-card">
+                  <div>
+                    <div class="progress-head">
+                      <span>Avancement global</span>
+                      <strong id="progressValue">0%</strong>
+                    </div>
+                    <input id="progressRange" type="range" min="0" max="100" step="1" />
+                    <div class="progress-track" aria-hidden="true">
+                      <span id="progressBar"></span>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="details-grid">
+                  <label>
+                    Client
+                    <input id="clientInput" type="text" />
+                  </label>
+                  <label>
+                    Responsable
+                    <input id="managerInput" type="text" />
+                  </label>
+                  <label>
+                    Ville
+                    <input id="cityInput" type="text" />
+                  </label>
+                  <label>
+                    Prochaine échéance
+                    <input id="nextDateInput" type="date" />
+                  </label>
+                </div>
+              </div>
+            </section>
+
+            <section class="panel" data-panel="synthese">
+              <div class="panel-heading">
+                <div>
+                  <h2>Budget par lot</h2>
+                  <p class="muted">Prévu, engagé, reste à produire et dérive.</p>
+                </div>
+                <button id="addLotBtn" class="secondary-button" type="button">
+                  <span aria-hidden="true">+</span>
+                  Ajouter un lot
+                </button>
+              </div>
+              <div class="table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Lot</th>
+                      <th>Prévu</th>
+                      <th>Engagé</th>
+                      <th>Reste</th>
+                      <th>Dérive</th>
+                    </tr>
+                  </thead>
+                  <tbody id="budgetRows"></tbody>
+                </table>
+              </div>
+            </section>
+
+            <section class="panel" data-panel="achats">
+              <div class="panel-heading">
+                <div>
+                  <h2>Achats par thème</h2>
+                  <p class="muted">Commandes rattachées à un lot, avec validation automatique sur le budget prévu.</p>
+                </div>
+                <button id="addPurchaseBtn" class="secondary-button" type="button">
+                  <span aria-hidden="true">+</span>
+                  Ajouter une commande
+                </button>
+              </div>
+              <div class="ops-summary" aria-label="Synthèse achats">
+                <div>
+                  <span>Commandes saisies</span>
+                  <strong id="opsPurchases">0 €</strong>
+                </div>
+                <div>
+                  <span>Lots en dépassement</span>
+                  <strong id="opsPurchaseAlerts">0</strong>
+                </div>
+              </div>
+              <div id="purchaseThemes" class="theme-list"></div>
+              <div class="table-wrap">
+                <table class="ops-table">
+                  <thead>
+                    <tr>
+                      <th>Thème / lot</th>
+                      <th>Fournisseur</th>
+                      <th>Commande</th>
+                      <th>Montant</th>
+                      <th>Statut</th>
+                      <th>Validation budget</th>
+                    </tr>
+                  </thead>
+                  <tbody id="purchaseRows"></tbody>
+                </table>
+              </div>
+            </section>
+
+            <section class="panel" data-panel="fae">
+              <div class="panel-heading">
+                <div>
+                  <h2>FAE et facturation</h2>
+                  <p class="muted">Écart visuel entre engagement de l'affaire et facturation émise.</p>
+                </div>
+                <button id="addFaeBtn" class="secondary-button" type="button">
+                  <span aria-hidden="true">+</span>
+                  Ajouter une FAE
+                </button>
+              </div>
+              <div class="billing-chart" aria-label="Graphique engagement et facturation">
+                <div class="chart-row">
+                  <span>Engagement</span>
+                  <div class="chart-track"><span id="engagementBar"></span></div>
+                  <strong id="engagementValue">0 €</strong>
+                </div>
+                <div class="chart-row">
+                  <span>Facturé</span>
+                  <div class="chart-track billed"><span id="billedBar"></span></div>
+                  <strong id="billedValue">0 €</strong>
+                </div>
+                <div class="chart-row">
+                  <span>FAE ouvertes</span>
+                  <div class="chart-track pending"><span id="pendingFaeBar"></span></div>
+                  <strong id="opsFae">0 €</strong>
+                </div>
+              </div>
+              <div class="table-wrap">
+                <table class="ops-table">
+                  <thead>
+                    <tr>
+                      <th>Libellé</th>
+                      <th>Montant</th>
+                      <th>Échéance</th>
+                      <th>Statut</th>
+                    </tr>
+                  </thead>
+                  <tbody id="faeRows"></tbody>
+                </table>
+              </div>
+            </section>
+
+            <section class="panel" data-panel="heures">
+              <div class="panel-heading">
+                <div>
+                  <h2>Heures par thème</h2>
+                  <p class="muted">Temps prévu et consommé par lot, avec validation sur le budget d'heures.</p>
+                </div>
+                <button id="addHourBtn" class="secondary-button" type="button">
+                  <span aria-hidden="true">+</span>
+                  Ajouter des heures
+                </button>
+              </div>
+              <div class="ops-summary" aria-label="Synthèse heures">
+                <div>
+                  <span>Heures prévues</span>
+                  <strong id="opsHoursPlanned">0 h</strong>
+                </div>
+                <div>
+                  <span>Heures consommées</span>
+                  <strong id="opsHoursUsed">0 h</strong>
+                </div>
+                <div>
+                  <span>Heures restantes</span>
+                  <strong id="opsHours">0 h</strong>
+                </div>
+              </div>
+              <div id="hourThemes" class="theme-list"></div>
+              <div class="table-wrap">
+                <table class="ops-table">
+                  <thead>
+                    <tr>
+                      <th>Thème / lot</th>
+                      <th>Équipe / tâche</th>
+                      <th>Budget h</th>
+                      <th>Passé h</th>
+                      <th>Écart</th>
+                      <th>Validation</th>
+                    </tr>
+                  </thead>
+                  <tbody id="hourRows"></tbody>
+                </table>
+              </div>
+            </section>
+
+            <section class="panel" data-panel="gonogo">
+              <div class="panel-heading">
+                <div>
+                  <h2>Revue Travaux Go / No-Go</h2>
+                  <p class="muted">Saisie des feuilles Informations et GoNoGo, puis export dans le modèle Excel.</p>
+                </div>
+                <button id="addGngCaseBtn" class="secondary-button" type="button">
+                  <span aria-hidden="true">+</span>
+                  Nouveau dossier
+                </button>
+              </div>
+              <div class="gng-case-layout">
+                <aside class="gng-case-list" aria-label="Dossiers Go No-Go">
+                  <div class="gng-filter-box">
+                    <label>
+                      Recherche nom
+                      <input id="gngSearchInput" type="search" placeholder="Nom du Go / No-Go" />
+                    </label>
+                    <label>
+                      Statut
+                      <select id="gngStatusFilterSelect">
+                        <option value="all">Tous</option>
+                        <option value="interesse">Intéressé</option>
+                        <option value="go">GO</option>
+                        <option value="nogo">NOGO</option>
+                      </select>
+                    </label>
+                    <label>
+                      Tri par date
+                      <select id="gngDateSortSelect">
+                        <option value="recent">Plus récent au plus ancien</option>
+                        <option value="oldest">Plus ancien au plus récent</option>
+                      </select>
+                    </label>
+                  </div>
+                  <div class="gng-agency-box">
+                    <label>
+                      Base agence
+                      <select id="gngAgencyPresetSelect"></select>
+                    </label>
+                    <div class="gng-agency-actions">
+                      <button id="applyAgencyPresetBtn" class="secondary-button compact-button" type="button">Appliquer</button>
+                      <button id="saveAgencyPresetBtn" class="secondary-button compact-button" type="button">Enregistrer</button>
+                      <button id="deleteAgencyPresetBtn" class="secondary-button compact-button danger-button" type="button">Supprimer</button>
+                    </div>
+                    <small>Remplit automatiquement la partie Agence de la fiche.</small>
+                  </div>
+                  <div id="gngCaseList"></div>
+                  <div class="template-upload">
+                    <span>Modèle revue travaux</span>
+                    <small id="gngTemplateName">Revue_Travaux_Niveau 1.xlsx chargé automatiquement</small>
+                  </div>
+                  <button id="exportGngExcelBtn" class="primary-button" type="button">
+                    <span aria-hidden="true">↧</span>
+                    Exporter la revue Excel
+                  </button>
+                </aside>
+                <div class="gng-case-detail">
+                  <section class="excel-section gng-top-card">
+                    <div class="details-grid gng-case-fields">
+                      <label>
+                        Décision
+                        <select id="gngStatusSelect">
+                          <option value="interesse">Intéressé</option>
+                          <option value="go">GO</option>
+                          <option value="nogo">NOGO</option>
+                        </select>
+                      </label>
+                      <label>
+                        Date téléchargement
+                        <input id="gngDownloadDateInput" type="date" />
+                      </label>
+                      <label>
+                        Date remise
+                        <input id="gngCaseDueInput" type="date" />
+                      </label>
+                      <label>
+                        Menu Go / No-Go
+                        <select id="gngActionMenu">
+                          <option value="">Actions</option>
+                          <option value="delete">Supprimer ce Go / No-Go</option>
+                        </select>
+                      </label>
+                    </div>
+                    <div class="details-grid">
+                      <label>
+                        Action
+                        <textarea id="gngActionInput" rows="4"></textarea>
+                      </label>
+                      <label>
+                        Commentaire de suivi offre
+                        <textarea id="gngFollowupInput" rows="4"></textarea>
+                      </label>
+                    </div>
+                  </section>
+                  <div class="details-grid gng-case-fields">
+                    <label>
+                      Nom du dossier
+                      <input id="gngCaseNameInput" type="text" />
+                    </label>
+                    <label>
+                      Client / prospect
+                      <input id="gngCaseClientInput" type="text" />
+                    </label>
+                    <label>
+                      Montant estimé
+                      <input id="gngCaseAmountInput" type="number" min="0" step="1000" />
+                    </label>
+                  </div>
+                  <div id="gngInfoFields" class="excel-form"></div>
+                  <section class="excel-section">
+                    <div class="panel-heading compact-heading">
+                      <div>
+                        <h3>Questions Go / No-Go</h3>
+                        <p class="muted">Ces réponses alimentent les cellules R7 à R16 de la feuille GoNoGo.</p>
+                      </div>
+                    </div>
+                    <div id="gngQuestionRows" class="question-list"></div>
+                  </section>
+                </div>
+              </div>
+            </section>
+
+            <section class="panel todo-panel" data-panel="todolist">
+              <div class="panel-heading">
+                <div>
+                  <p class="eyebrow">Lean Construction</p>
+                  <h2>Todo List engagements</h2>
+                  <p class="muted">Suivi des promesses, responsables, contraintes et jalons type Last Planner.</p>
+                </div>
+              </div>
+
+              <div class="lean-kpi-grid">
+                <article>
+                  <span>PPC</span>
+                  <strong id="todoPpcValue">0%</strong>
+                  <small>Promesses terminées</small>
+                </article>
+                <article>
+                  <span>Contraintes ouvertes</span>
+                  <strong id="todoConstraintValue">0</strong>
+                  <small>À lever avant engagement</small>
+                </article>
+                <article>
+                  <span>Jalons semaine</span>
+                  <strong id="todoWeekValue">0</strong>
+                  <small>Échéances à 7 jours</small>
+                </article>
+              </div>
+
+              <div id="todoTasksView" class="todo-view-panel">
+                <div class="todo-filter-bar" aria-label="Filtres des tâches">
+                  <label>
+                    Personne
+                    <select id="todoOwnerFilterSelect">
+                      <option value="">Toutes les personnes</option>
+                    </select>
+                  </label>
+                  <label>
+                    Chantier
+                    <select id="todoProjectFilterSelect">
+                      <option value="">Tous les chantiers</option>
+                    </select>
+                  </label>
+                  <button id="todoClearFiltersBtn" class="secondary-button" type="button">Réinitialiser</button>
+                </div>
+
+                <form id="todoTaskForm" class="todo-form">
+                  <label class="todo-form-wide">
+                    Tâche à modifier
+                    <select id="todoEditSelect">
+                      <option value="">Nouvelle tâche</option>
+                    </select>
+                  </label>
+                  <label>
+                    Tâche
+                    <input id="todoTitleInput" type="text" required placeholder="Ex. Valider réservations CTA" />
+                  </label>
+                  <label>
+                    Pour qui
+                    <input id="todoOwnerInput" type="text" required placeholder="Responsable / équipe" />
+                  </label>
+                  <label>
+                    Zone / lot
+                    <input id="todoZoneInput" type="text" placeholder="Ex. Local technique, réseaux toiture" />
+                  </label>
+                  <label>
+                    Chantier
+                    <select id="todoProjectSelect">
+                      <option value="">Hors chantier</option>
+                    </select>
+                  </label>
+                  <label>
+                    Date jalon
+                    <input id="todoDueInput" type="date" required />
+                  </label>
+                  <label>
+                    Statut Lean
+                    <select id="todoStatusInput">
+                      <option value="backlog">À préparer</option>
+                      <option value="ready">Prêt / engagé</option>
+                      <option value="doing">En cours</option>
+                      <option value="done">Fait</option>
+                      <option value="blocked">Contrainte</option>
+                    </select>
+                  </label>
+                  <label class="todo-form-wide">
+                    Contrainte / prérequis
+                    <input id="todoConstraintInput" type="text" placeholder="Plan, appro, accès, décision client..." />
+                  </label>
+                  <div class="todo-form-actions">
+                    <button id="todoNewTaskBtn" class="secondary-button" type="button">Nouvelle tâche</button>
+                    <button id="todoDeleteSelectedBtn" class="secondary-button danger-button" type="button">Supprimer</button>
+                    <button id="todoSubmitBtn" class="primary-button" type="submit">
+                      <span aria-hidden="true">+</span>
+                      Enregistrer
+                    </button>
+                  </div>
+                </form>
+
+                <div class="lean-board" aria-label="Tableau Lean Construction">
+                  <section class="lean-column">
+                    <h3>À préparer</h3>
+                    <div id="todoBacklogList" class="todo-column-list"></div>
+                  </section>
+                  <section class="lean-column">
+                    <h3>Prêt / engagé</h3>
+                    <div id="todoReadyList" class="todo-column-list"></div>
+                  </section>
+                  <section class="lean-column">
+                    <h3>En cours</h3>
+                    <div id="todoDoingList" class="todo-column-list"></div>
+                  </section>
+                  <section class="lean-column">
+                    <h3>Fait</h3>
+                    <div id="todoDoneList" class="todo-column-list"></div>
+                  </section>
+                </div>
+              </div>
+
+              <section id="todoPlanningView" class="lean-planning todo-view-panel is-hidden">
+                <div class="panel-heading compact-heading">
+                  <div>
+                    <h3>Planning tâches</h3>
+                    <p class="muted">Lecture Lean des engagements par échéance, responsable, chantier et contrainte.</p>
+                  </div>
+                </div>
+                <div id="todoPlanningList" class="planning-list"></div>
+              </section>
+            </section>
+
+            <section id="settingsPanel" class="panel settings-panel is-hidden" aria-label="Paramètres">
+              <div class="panel-heading">
+                <div>
+                  <h2>Paramètres</h2>
+                  <p class="muted">Préférences locales et options prêtes à évoluer.</p>
+                </div>
+              </div>
+              <div class="settings-grid">
+                <label class="setting-row">
+                  <span>
+                    <strong>Mode sombre</strong>
+                    <small>Change l'apparence de l'application sur ce navigateur.</small>
+                  </span>
+                  <input id="darkModeToggle" type="checkbox" />
+                </label>
+                <label class="setting-row">
+                  <span>
+                    <strong>Mode compact</strong>
+                    <small>Réduit les espacements pour afficher plus de lignes.</small>
+                  </span>
+                  <input id="compactModeToggle" type="checkbox" />
+                </label>
+                <label class="setting-row">
+                  <span>
+                    <strong>Confirmer avant suppression</strong>
+                    <small>Protection lors de la suppression d'un chantier.</small>
+                  </span>
+                  <input id="confirmDeleteToggle" type="checkbox" />
+                </label>
+                <label class="setting-row">
+                  <span>
+                    <strong>Afficher les exemples au démarrage</strong>
+                    <small>Option réservée pour les prochains réglages d'initialisation.</small>
+                  </span>
+                  <input id="demoDataToggle" type="checkbox" />
+                </label>
+              </div>
+            </section>
+          </div>
+
+          <aside class="side-column" data-panel="synthese">
+            <section class="panel compact-panel">
+              <div class="panel-heading">
+                <div>
+                  <h2>Actions</h2>
+                  <p class="muted">Points ouverts et relances.</p>
+                </div>
+                <button id="addActionBtn" class="icon-button small" type="button" title="Créer une tâche TodoList pour ce chantier" aria-label="Créer une tâche TodoList pour ce chantier">
+                  <span aria-hidden="true">+</span>
+                </button>
+              </div>
+              <div id="actionList" class="action-list"></div>
+            </section>
+
+            <section class="panel compact-panel">
+              <div class="panel-heading">
+                <div>
+                  <h2>Jalons</h2>
+                  <p class="muted">Dates clés du chantier.</p>
+                </div>
+              </div>
+              <div id="milestoneList" class="milestone-list"></div>
+            </section>
+
+            <section class="panel compact-panel">
+              <div class="panel-heading">
+                <div>
+                  <h2>Notes affaire</h2>
+                  <p class="muted">Compte-rendu rapide.</p>
+                </div>
+              </div>
+              <textarea id="notesInput" rows="7" placeholder="Décisions, risques, demandes client..."></textarea>
+            </section>
+          </aside>
+        </section>
+        </div>
+      </main>
+    </div>
+
+    <dialog id="projectDialog">
+      <form method="dialog" class="dialog-card">
+        <h2>Nouvelle affaire CVC</h2>
+        <label>
+          Nom de l'affaire
+          <input id="newName" type="text" required placeholder="Ex. Collège Jean Moulin" />
+        </label>
+        <label>
+          Client
+          <input id="newClient" type="text" required placeholder="Maîtrise d'ouvrage" />
+        </label>
+        <div class="dialog-grid">
+          <label>
+            Ville
+            <input id="newCity" type="text" required />
+          </label>
+          <label>
+            Montant signé
+            <input id="newRevenue" type="number" min="0" step="1000" required />
+          </label>
+        </div>
+        <menu>
+          <button value="cancel" class="secondary-button" type="submit">Annuler</button>
+          <button id="createProjectConfirm" value="default" class="primary-button" type="submit">Créer</button>
+        </menu>
+      </form>
+    </dialog>
+
+    <button id="settingsGearBtn" class="settings-gear" type="button" title="Paramètres" aria-label="Paramètres">
+      <span aria-hidden="true">⚙</span>
+    </button>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="supabase-config.js"></script>
+    <script src="template-data.js"></script>
+    <script src="app.js"></script>
+  </body>
+</html>
