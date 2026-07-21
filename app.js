@@ -188,6 +188,8 @@ let activeSpace = "chantiers";
 let activeTab = "synthese";
 let activeTodoView = "tasks";
 let goNoGoTemplate = null;
+let currentUser = null;
+let authReady = false;
 
 const excelFieldGroups = [
   {
@@ -349,6 +351,16 @@ if (repairedStoredText) {
 }
 
 const elements = {
+  appShell: document.querySelector("#appShell"),
+  authView: document.querySelector("#authView"),
+  authForm: document.querySelector("#authForm"),
+  authEmailInput: document.querySelector("#authEmailInput"),
+  authPasswordInput: document.querySelector("#authPasswordInput"),
+  authLoginBtn: document.querySelector("#authLoginBtn"),
+  authSignupBtn: document.querySelector("#authSignupBtn"),
+  authMessage: document.querySelector("#authMessage"),
+  userBadge: document.querySelector("#userBadge"),
+  logoutBtn: document.querySelector("#logoutBtn"),
   projectList: document.querySelector("#projectList"),
   searchInput: document.querySelector("#searchInput"),
   projectSpaceBtn: document.querySelector("#projectSpaceBtn"),
@@ -485,6 +497,9 @@ document.querySelectorAll(".section-tab").forEach((button) => {
 });
 
 elements.projectSpaceBtn.addEventListener("click", () => setActiveSpace("chantiers"));
+elements.authForm.addEventListener("submit", signInUser);
+elements.authSignupBtn.addEventListener("click", signUpUser);
+elements.logoutBtn.addEventListener("click", signOutUser);
 elements.goNoGoSpaceBtn.addEventListener("click", () => setActiveSpace("gonogo"));
 elements.todoSpaceBtn.addEventListener("click", () => setActiveSpace("todolist"));
 elements.searchInput.addEventListener("input", renderProjectList);
@@ -553,11 +568,10 @@ elements.demoDataToggle.addEventListener("change", () => updateSetting("showDemo
 });
 
 loadBundledGoNoGoTemplate();
-render();
 applySettings();
 elements.techDateInput.value = todayString();
 elements.todoDueInput.value = todayString();
-syncFromRemote();
+initAuth();
 
 function loadProjects() {
   const raw = localStorage.getItem(storageKey);
@@ -769,9 +783,110 @@ function createRemoteStore() {
   };
 }
 
+async function initAuth() {
+  if (!remoteStore.enabled) {
+    elements.authMessage.textContent = "Supabase n'est pas configuré. Vérifie supabase-config.js.";
+    elements.authView.classList.remove("is-hidden");
+    elements.appShell.classList.add("is-hidden");
+    return;
+  }
+
+  const { data: { session } = {} } = await remoteStore.client.auth.getSession();
+  currentUser = session?.user || null;
+  authReady = true;
+  applyAuthState();
+
+  remoteStore.client.auth.onAuthStateChange((_event, session) => {
+    currentUser = session?.user || null;
+    applyAuthState();
+    if (currentUser) syncFromRemote();
+  });
+
+  if (currentUser) syncFromRemote();
+}
+
+async function signInUser(event) {
+  event.preventDefault();
+  setAuthMessage("Connexion en cours...");
+  const { error } = await remoteStore.client.auth.signInWithPassword({
+    email: elements.authEmailInput.value.trim(),
+    password: elements.authPasswordInput.value
+  });
+  if (error) {
+    setAuthMessage("Connexion impossible : vérifie l'email et le mot de passe.", true);
+    return;
+  }
+  elements.authPasswordInput.value = "";
+  setAuthMessage("");
+}
+
+async function signUpUser() {
+  setAuthMessage("Création du compte...");
+  const email = elements.authEmailInput.value.trim();
+  const password = elements.authPasswordInput.value;
+  if (!email || password.length < 6) {
+    setAuthMessage("Indique un email et un mot de passe de 6 caractères minimum.", true);
+    return;
+  }
+
+  const { error } = await remoteStore.client.auth.signUp({
+    email,
+    password
+  });
+  if (error) {
+    setAuthMessage(`Création impossible : ${error.message}`, true);
+    return;
+  }
+  setAuthMessage("Compte créé. Si Supabase demande une confirmation email, valide le mail avant connexion.");
+}
+
+async function signOutUser() {
+  if (!remoteStore.enabled) return;
+  await remoteStore.client.auth.signOut({ scope: "local" });
+  currentUser = null;
+  applyAuthState();
+}
+
+function applyAuthState() {
+  const signedIn = Boolean(currentUser);
+  elements.authView.classList.toggle("is-hidden", signedIn);
+  elements.appShell.classList.toggle("is-hidden", !signedIn);
+
+  if (!signedIn) {
+    setAuthMessage(authReady ? "Connecte-toi pour accéder au site." : "");
+    return;
+  }
+
+  const admin = isCurrentUserAdmin();
+  elements.userBadge.innerHTML = `
+    <strong>${admin ? "Administrateur" : "Technicien"}</strong>
+    <span>${escapeHtml(currentUser.email || "Compte connecté")}</span>
+  `;
+  document.body.classList.toggle("non-admin-mode", !admin);
+  if (!admin) setTechnicianMode(true);
+  render();
+}
+
+function isCurrentUserAdmin() {
+  const email = currentUser?.email?.toLowerCase();
+  const adminEmails = (window.supabaseConfig?.adminEmails || []).map((item) => String(item).toLowerCase());
+  return Boolean(email && adminEmails.includes(email));
+}
+
+function requireAdminAction() {
+  if (isCurrentUserAdmin()) return true;
+  alert("Action réservée au compte administrateur.");
+  return false;
+}
+
+function setAuthMessage(message, isError = false) {
+  elements.authMessage.textContent = message;
+  elements.authMessage.classList.toggle("is-error", isError);
+}
+
 function saveAppState(key, value) {
   localStorage.setItem(key, JSON.stringify(value));
-  if (!remoteStore.enabled) return;
+  if (!remoteStore.enabled || !currentUser) return;
 
   remoteStore.client
     .from("app_state")
@@ -1091,6 +1206,10 @@ function applyActiveTab() {
 }
 
 function setTechnicianMode(enabled) {
+  if (!enabled && currentUser && !isCurrentUserAdmin()) {
+    alert("Le mode gestion est réservé au compte administrateur.");
+    return;
+  }
   document.body.classList.toggle("tech-mode", enabled);
   elements.technicianView.classList.toggle("is-hidden", !enabled);
   elements.managementView.classList.toggle("is-hidden", enabled);
@@ -1895,6 +2014,7 @@ function parseProjectActionId(taskId) {
 function bindOperationalInputs(row, project) {
   row.querySelectorAll("input, select").forEach((input) => {
     input.addEventListener("change", () => {
+      if (!requireAdminAction()) return;
       const collection = input.dataset.collection;
       const field = input.dataset.field;
       const index = Number(input.dataset.index);
@@ -1999,6 +2119,7 @@ function renderMilestones(project) {
 }
 
 function updateProject(field, value) {
+  if (!requireAdminAction()) return;
   const project = getSelectedProject();
   project[field] = value;
   saveProjects();
@@ -2007,6 +2128,7 @@ function updateProject(field, value) {
 }
 
 function createProject(event) {
+  if (!requireAdminAction()) return;
   const form = elements.projectDialog.querySelector("form");
   if (!form.reportValidity()) {
     event.preventDefault();
@@ -2046,6 +2168,7 @@ function createProject(event) {
 }
 
 function addLot() {
+  if (!requireAdminAction()) return;
   const project = getSelectedProject();
   project.lots.push({ name: "Nouveau lot", planned: 0, committed: 0 });
   saveProjects();
@@ -2053,6 +2176,7 @@ function addLot() {
 }
 
 function addPurchase() {
+  if (!requireAdminAction()) return;
   const project = getSelectedProject();
   project.purchases.unshift({ theme: project.lots[0]?.name || "Général", supplier: "Nouveau fournisseur", item: "Achat à préciser", orderRef: "", amount: 0, status: "devis" });
   saveProjects();
@@ -2060,6 +2184,7 @@ function addPurchase() {
 }
 
 function addFae() {
+  if (!requireAdminAction()) return;
   const project = getSelectedProject();
   project.faes.unshift({ label: "Nouvelle FAE", amount: 0, due: project.nextDate || new Date().toISOString().slice(0, 10), status: "a_etablir" });
   saveProjects();
@@ -2067,6 +2192,7 @@ function addFae() {
 }
 
 function addHourLine() {
+  if (!requireAdminAction()) return;
   const project = getSelectedProject();
   project.hours.unshift({ theme: project.lots[0]?.name || "Général", task: "Nouvelle tâche", planned: 0, used: 0 });
   saveProjects();
@@ -2074,6 +2200,7 @@ function addHourLine() {
 }
 
 function updateSelectedGoNoGoCase(field, value) {
+  if (!requireAdminAction()) return;
   const goNoGo = getSelectedGoNoGoCase();
   goNoGo[field] = value;
   syncGoNoGoSummaryFields(goNoGo);
@@ -2087,6 +2214,7 @@ function handleGoNoGoActionMenu() {
 }
 
 function deleteSelectedGoNoGoCase() {
+  if (!requireAdminAction()) return;
   const goNoGo = getSelectedGoNoGoCase();
   if (!goNoGo) return;
 
@@ -2101,6 +2229,7 @@ function deleteSelectedGoNoGoCase() {
 }
 
 function applySelectedAgencyPreset() {
+  if (!requireAdminAction()) return;
   const preset = getSelectedAgencyPreset();
   const goNoGo = getSelectedGoNoGoCase();
   if (!preset || !goNoGo) return;
@@ -2114,6 +2243,7 @@ function applySelectedAgencyPreset() {
 }
 
 function saveAgencyPresetFromCurrentGoNoGo() {
+  if (!requireAdminAction()) return;
   const goNoGo = getSelectedGoNoGoCase();
   if (!goNoGo) return;
 
@@ -2138,6 +2268,7 @@ function saveAgencyPresetFromCurrentGoNoGo() {
 }
 
 function deleteSelectedAgencyPreset() {
+  if (!requireAdminAction()) return;
   const preset = getSelectedAgencyPreset();
   if (!preset) return;
 
@@ -2150,6 +2281,7 @@ function deleteSelectedAgencyPreset() {
 }
 
 function updateGoNoGoField(key, value) {
+  if (!requireAdminAction()) return;
   const goNoGo = getSelectedGoNoGoCase();
   goNoGo.fields[key] = value;
   if (key === "info_C23") goNoGo.name = value;
@@ -2161,6 +2293,7 @@ function updateGoNoGoField(key, value) {
 }
 
 function addGoNoGoCase() {
+  if (!requireAdminAction()) return;
   const newCase = createDefaultGoNoGoCase();
   goNoGoCases.unshift(newCase);
   selectedGoNoGoId = newCase.id;
@@ -2170,6 +2303,7 @@ function addGoNoGoCase() {
 
 function addTodoTask(event) {
   event.preventDefault();
+  if (!requireAdminAction()) return;
   if (selectedTodoTaskId) {
     updateTodoTaskFromEditor(selectedTodoTaskId);
     return;
@@ -2195,6 +2329,7 @@ function addTodoTask(event) {
 }
 
 function updateTodoTaskFromEditor(taskId) {
+  if (!requireAdminAction()) return;
   const title = elements.todoTitleInput.value.trim();
   const owner = elements.todoOwnerInput.value.trim();
   if (!title || !owner) return;
@@ -2242,6 +2377,7 @@ function deleteSelectedTodoFromEditor() {
 }
 
 function updateTodoTaskStatus(taskId, status) {
+  if (!requireAdminAction()) return;
   const projectAction = parseProjectActionId(taskId);
   if (projectAction) {
     const project = projects.find((item) => item.id === projectAction.projectId);
@@ -2261,6 +2397,7 @@ function updateTodoTaskStatus(taskId, status) {
 }
 
 function updateTodoTaskField(taskId, field, value) {
+  if (!requireAdminAction()) return;
   const projectAction = parseProjectActionId(taskId);
   if (projectAction) {
     const project = projects.find((item) => item.id === projectAction.projectId);
@@ -2288,6 +2425,7 @@ function updateTodoTaskField(taskId, field, value) {
 }
 
 function deleteTodoTask(taskId) {
+  if (!requireAdminAction()) return;
   const projectAction = parseProjectActionId(taskId);
   if (projectAction) {
     const project = projects.find((item) => item.id === projectAction.projectId);
@@ -2312,6 +2450,7 @@ function deleteTodoTask(taskId) {
 }
 
 function openTodoTaskCreationForSelectedProject() {
+  if (!requireAdminAction()) return;
   const project = getSelectedProject();
   if (!project) return;
 
@@ -2716,6 +2855,7 @@ function applySettings() {
 }
 
 function resetDemo() {
+  if (!requireAdminAction()) return;
   if (!confirm("Réinitialiser les données de démonstration ?")) return;
   projects = structuredClone(seedProjects);
   normalizeProjects(projects);

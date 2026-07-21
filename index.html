@@ -7,7 +7,31 @@
     <link rel="stylesheet" href="styles.css" />
   </head>
   <body>
-    <div class="app-shell">
+    <section id="authView" class="auth-view" aria-label="Connexion">
+      <form id="authForm" class="auth-card">
+        <div>
+          <p class="eyebrow">Accès sécurisé</p>
+          <h1>Gestion d'affaires CVC</h1>
+          <p class="muted">Connecte-toi avec ton compte pour accéder aux chantiers, Go/No-Go et tâches.</p>
+        </div>
+        <label>
+          Email
+          <input id="authEmailInput" type="email" autocomplete="email" required placeholder="prenom.nom@email.com" />
+        </label>
+        <label>
+          Mot de passe
+          <input id="authPasswordInput" type="password" autocomplete="current-password" required minlength="6" />
+        </label>
+        <p id="authMessage" class="auth-message" role="status"></p>
+        <div class="auth-actions">
+          <button id="authLoginBtn" class="primary-button" type="submit">Se connecter</button>
+          <button id="authSignupBtn" class="secondary-button" type="button">Créer un compte</button>
+        </div>
+        <small>Le compte administrateur est défini dans la configuration Supabase du site.</small>
+      </form>
+    </section>
+
+    <div id="appShell" class="app-shell is-hidden">
       <aside class="sidebar" aria-label="Navigation affaires">
         <div class="brand">
           <div class="brand-mark" aria-hidden="true">CVC</div>
@@ -52,6 +76,7 @@
             <p id="projectSubtitle" class="muted"></p>
           </div>
           <div class="topbar-actions">
+            <div id="userBadge" class="user-badge" aria-live="polite"></div>
             <button id="techModeBtn" class="secondary-button" type="button">
               <span aria-hidden="true">H</span>
               Espace technicien
@@ -69,6 +94,7 @@
               <span aria-hidden="true">+</span>
               Nouvelle affaire
             </button>
+            <button id="logoutBtn" class="secondary-button" type="button">Déconnexion</button>
           </div>
         </header>
 
