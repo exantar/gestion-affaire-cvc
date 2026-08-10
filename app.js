@@ -189,6 +189,8 @@ let activeTab = "synthese";
 let activeTodoView = "tasks";
 let goNoGoTemplate = null;
 let currentUser = null;
+let currentProfile = null;
+let userProfiles = [];
 let authReady = false;
 
 const excelFieldGroups = [
@@ -484,6 +486,9 @@ const elements = {
   todoPlanningList: document.querySelector("#todoPlanningList"),
   settingsGearBtn: document.querySelector("#settingsGearBtn"),
   settingsPanel: document.querySelector("#settingsPanel"),
+  accessManagementPanel: document.querySelector("#accessManagementPanel"),
+  accessManagementList: document.querySelector("#accessManagementList"),
+  accessManagementMessage: document.querySelector("#accessManagementMessage"),
   darkModeToggle: document.querySelector("#darkModeToggle"),
   compactModeToggle: document.querySelector("#compactModeToggle"),
   confirmDeleteToggle: document.querySelector("#confirmDeleteToggle"),
@@ -553,6 +558,9 @@ elements.darkModeToggle.addEventListener("change", () => updateSetting("darkMode
 elements.compactModeToggle.addEventListener("change", () => updateSetting("compactMode", elements.compactModeToggle.checked));
 elements.confirmDeleteToggle.addEventListener("change", () => updateSetting("confirmDelete", elements.confirmDeleteToggle.checked));
 elements.demoDataToggle.addEventListener("change", () => updateSetting("showDemoData", elements.demoDataToggle.checked));
+elements.accessManagementList.addEventListener("change", (event) => {
+  if (event.target.matches("[data-profile-role]")) updateUserRole(event.target.dataset.profileRole, event.target.value);
+});
 
 [
   ["status", elements.statusSelect],
@@ -793,11 +801,13 @@ async function initAuth() {
 
   const { data: { session } = {} } = await remoteStore.client.auth.getSession();
   currentUser = session?.user || null;
+  await loadCurrentProfile();
   authReady = true;
   applyAuthState();
 
-  remoteStore.client.auth.onAuthStateChange((_event, session) => {
+  remoteStore.client.auth.onAuthStateChange(async (_event, session) => {
     currentUser = session?.user || null;
+    await loadCurrentProfile();
     applyAuthState();
     if (currentUser) syncFromRemote();
   });
@@ -844,6 +854,8 @@ async function signOutUser() {
   if (!remoteStore.enabled) return;
   await remoteStore.client.auth.signOut({ scope: "local" });
   currentUser = null;
+  currentProfile = null;
+  userProfiles = [];
   applyAuthState();
 }
 
@@ -857,26 +869,96 @@ function applyAuthState() {
     return;
   }
 
-  const admin = isCurrentUserAdmin();
+  const role = getCurrentUserRole();
+  const canManage = canManageProjects();
   elements.userBadge.innerHTML = `
-    <strong>${admin ? "Administrateur" : "Technicien"}</strong>
+    <strong>${escapeHtml(roleLabel(role))}</strong>
     <span>${escapeHtml(currentUser.email || "Compte connecté")}</span>
   `;
-  document.body.classList.toggle("non-admin-mode", !admin);
-  if (!admin) setTechnicianMode(true);
+  document.body.classList.toggle("non-manager-mode", !canManage);
+  if (!canManage) setTechnicianMode(true);
   render();
 }
 
 function isCurrentUserAdmin() {
+  return getCurrentUserRole() === "admin";
+}
+
+function canManageProjects() {
+  return ["admin", "manager"].includes(getCurrentUserRole());
+}
+
+function getCurrentUserRole() {
+  if (currentProfile?.role) return currentProfile.role;
   const email = currentUser?.email?.toLowerCase();
   const adminEmails = (window.supabaseConfig?.adminEmails || []).map((item) => String(item).toLowerCase());
-  return Boolean(email && adminEmails.includes(email));
+  return email && adminEmails.includes(email) ? "admin" : "technician";
+}
+
+function roleLabel(role) {
+  return { admin: "Administrateur", manager: "Gestionnaire de projets", technician: "Technicien" }[role] || "Technicien";
+}
+
+function requireProjectManagerAction() {
+  if (canManageProjects()) return true;
+  alert("Action réservée aux gestionnaires de projets.");
+  return false;
 }
 
 function requireAdminAction() {
   if (isCurrentUserAdmin()) return true;
   alert("Action réservée au compte administrateur.");
   return false;
+}
+
+async function loadCurrentProfile() {
+  currentProfile = null;
+  userProfiles = [];
+  if (!remoteStore.enabled || !currentUser) return;
+
+  const { data, error } = await remoteStore.client
+    .from("profiles")
+    .select("id, email, role")
+    .eq("id", currentUser.id)
+    .maybeSingle();
+
+  if (error) {
+    console.warn("Profil Supabase indisponible. Applique le script supabase-schema.sql.", error.message);
+    return;
+  }
+  currentProfile = data;
+  if (isCurrentUserAdmin()) await loadUserProfiles();
+}
+
+async function loadUserProfiles() {
+  if (!remoteStore.enabled || !isCurrentUserAdmin()) return;
+  const { data, error } = await remoteStore.client
+    .from("profiles")
+    .select("id, email, role, created_at")
+    .order("email");
+
+  if (error) {
+    console.warn("Liste des utilisateurs indisponible.", error.message);
+    return;
+  }
+  userProfiles = data || [];
+}
+
+async function updateUserRole(profileId, role) {
+  if (!requireAdminAction() || profileId === currentUser?.id) return;
+  const { error } = await remoteStore.client
+    .from("profiles")
+    .update({ role, updated_at: new Date().toISOString() })
+    .eq("id", profileId);
+
+  if (error) {
+    setAccessManagementMessage("Impossible de modifier ce rôle. Vérifie le script Supabase.", true);
+    return;
+  }
+
+  await loadUserProfiles();
+  setAccessManagementMessage("Accès mis à jour.");
+  renderAccessManagement();
 }
 
 function setAuthMessage(message, isError = false) {
@@ -1120,6 +1202,7 @@ function renderDetail() {
   renderFaes(project);
   renderHours(project);
   renderSettings();
+  renderAccessManagement();
   renderActions(project);
   renderMilestones(project);
   renderGoNoGo();
@@ -1206,8 +1289,8 @@ function applyActiveTab() {
 }
 
 function setTechnicianMode(enabled) {
-  if (!enabled && currentUser && !isCurrentUserAdmin()) {
-    alert("Le mode gestion est réservé au compte administrateur.");
+  if (!enabled && currentUser && !canManageProjects()) {
+    alert("Le mode gestion est réservé aux gestionnaires de projets.");
     return;
   }
   document.body.classList.toggle("tech-mode", enabled);
@@ -2014,7 +2097,7 @@ function parseProjectActionId(taskId) {
 function bindOperationalInputs(row, project) {
   row.querySelectorAll("input, select").forEach((input) => {
     input.addEventListener("change", () => {
-      if (!requireAdminAction()) return;
+      if (!requireProjectManagerAction()) return;
       const collection = input.dataset.collection;
       const field = input.dataset.field;
       const index = Number(input.dataset.index);
@@ -2119,7 +2202,7 @@ function renderMilestones(project) {
 }
 
 function updateProject(field, value) {
-  if (!requireAdminAction()) return;
+  if (!requireProjectManagerAction()) return;
   const project = getSelectedProject();
   project[field] = value;
   saveProjects();
@@ -2128,7 +2211,7 @@ function updateProject(field, value) {
 }
 
 function createProject(event) {
-  if (!requireAdminAction()) return;
+  if (!requireProjectManagerAction()) return;
   const form = elements.projectDialog.querySelector("form");
   if (!form.reportValidity()) {
     event.preventDefault();
@@ -2168,7 +2251,7 @@ function createProject(event) {
 }
 
 function addLot() {
-  if (!requireAdminAction()) return;
+  if (!requireProjectManagerAction()) return;
   const project = getSelectedProject();
   project.lots.push({ name: "Nouveau lot", planned: 0, committed: 0 });
   saveProjects();
@@ -2176,7 +2259,7 @@ function addLot() {
 }
 
 function addPurchase() {
-  if (!requireAdminAction()) return;
+  if (!requireProjectManagerAction()) return;
   const project = getSelectedProject();
   project.purchases.unshift({ theme: project.lots[0]?.name || "Général", supplier: "Nouveau fournisseur", item: "Achat à préciser", orderRef: "", amount: 0, status: "devis" });
   saveProjects();
@@ -2184,7 +2267,7 @@ function addPurchase() {
 }
 
 function addFae() {
-  if (!requireAdminAction()) return;
+  if (!requireProjectManagerAction()) return;
   const project = getSelectedProject();
   project.faes.unshift({ label: "Nouvelle FAE", amount: 0, due: project.nextDate || new Date().toISOString().slice(0, 10), status: "a_etablir" });
   saveProjects();
@@ -2192,7 +2275,7 @@ function addFae() {
 }
 
 function addHourLine() {
-  if (!requireAdminAction()) return;
+  if (!requireProjectManagerAction()) return;
   const project = getSelectedProject();
   project.hours.unshift({ theme: project.lots[0]?.name || "Général", task: "Nouvelle tâche", planned: 0, used: 0 });
   saveProjects();
@@ -2200,7 +2283,7 @@ function addHourLine() {
 }
 
 function updateSelectedGoNoGoCase(field, value) {
-  if (!requireAdminAction()) return;
+  if (!requireProjectManagerAction()) return;
   const goNoGo = getSelectedGoNoGoCase();
   goNoGo[field] = value;
   syncGoNoGoSummaryFields(goNoGo);
@@ -2214,7 +2297,7 @@ function handleGoNoGoActionMenu() {
 }
 
 function deleteSelectedGoNoGoCase() {
-  if (!requireAdminAction()) return;
+  if (!requireProjectManagerAction()) return;
   const goNoGo = getSelectedGoNoGoCase();
   if (!goNoGo) return;
 
@@ -2229,7 +2312,7 @@ function deleteSelectedGoNoGoCase() {
 }
 
 function applySelectedAgencyPreset() {
-  if (!requireAdminAction()) return;
+  if (!requireProjectManagerAction()) return;
   const preset = getSelectedAgencyPreset();
   const goNoGo = getSelectedGoNoGoCase();
   if (!preset || !goNoGo) return;
@@ -2243,7 +2326,7 @@ function applySelectedAgencyPreset() {
 }
 
 function saveAgencyPresetFromCurrentGoNoGo() {
-  if (!requireAdminAction()) return;
+  if (!requireProjectManagerAction()) return;
   const goNoGo = getSelectedGoNoGoCase();
   if (!goNoGo) return;
 
@@ -2268,7 +2351,7 @@ function saveAgencyPresetFromCurrentGoNoGo() {
 }
 
 function deleteSelectedAgencyPreset() {
-  if (!requireAdminAction()) return;
+  if (!requireProjectManagerAction()) return;
   const preset = getSelectedAgencyPreset();
   if (!preset) return;
 
@@ -2281,7 +2364,7 @@ function deleteSelectedAgencyPreset() {
 }
 
 function updateGoNoGoField(key, value) {
-  if (!requireAdminAction()) return;
+  if (!requireProjectManagerAction()) return;
   const goNoGo = getSelectedGoNoGoCase();
   goNoGo.fields[key] = value;
   if (key === "info_C23") goNoGo.name = value;
@@ -2293,7 +2376,7 @@ function updateGoNoGoField(key, value) {
 }
 
 function addGoNoGoCase() {
-  if (!requireAdminAction()) return;
+  if (!requireProjectManagerAction()) return;
   const newCase = createDefaultGoNoGoCase();
   goNoGoCases.unshift(newCase);
   selectedGoNoGoId = newCase.id;
@@ -2303,7 +2386,7 @@ function addGoNoGoCase() {
 
 function addTodoTask(event) {
   event.preventDefault();
-  if (!requireAdminAction()) return;
+  if (!requireProjectManagerAction()) return;
   if (selectedTodoTaskId) {
     updateTodoTaskFromEditor(selectedTodoTaskId);
     return;
@@ -2329,7 +2412,7 @@ function addTodoTask(event) {
 }
 
 function updateTodoTaskFromEditor(taskId) {
-  if (!requireAdminAction()) return;
+  if (!requireProjectManagerAction()) return;
   const title = elements.todoTitleInput.value.trim();
   const owner = elements.todoOwnerInput.value.trim();
   if (!title || !owner) return;
@@ -2377,7 +2460,7 @@ function deleteSelectedTodoFromEditor() {
 }
 
 function updateTodoTaskStatus(taskId, status) {
-  if (!requireAdminAction()) return;
+  if (!requireProjectManagerAction()) return;
   const projectAction = parseProjectActionId(taskId);
   if (projectAction) {
     const project = projects.find((item) => item.id === projectAction.projectId);
@@ -2397,7 +2480,7 @@ function updateTodoTaskStatus(taskId, status) {
 }
 
 function updateTodoTaskField(taskId, field, value) {
-  if (!requireAdminAction()) return;
+  if (!requireProjectManagerAction()) return;
   const projectAction = parseProjectActionId(taskId);
   if (projectAction) {
     const project = projects.find((item) => item.id === projectAction.projectId);
@@ -2425,7 +2508,7 @@ function updateTodoTaskField(taskId, field, value) {
 }
 
 function deleteTodoTask(taskId) {
-  if (!requireAdminAction()) return;
+  if (!requireProjectManagerAction()) return;
   const projectAction = parseProjectActionId(taskId);
   if (projectAction) {
     const project = projects.find((item) => item.id === projectAction.projectId);
@@ -2450,7 +2533,7 @@ function deleteTodoTask(taskId) {
 }
 
 function openTodoTaskCreationForSelectedProject() {
-  if (!requireAdminAction()) return;
+  if (!requireProjectManagerAction()) return;
   const project = getSelectedProject();
   if (!project) return;
 
@@ -2463,6 +2546,7 @@ function openTodoTaskCreationForSelectedProject() {
 }
 
 function deleteSelectedProject() {
+  if (!requireProjectManagerAction()) return;
   const project = getSelectedProject();
   if (!project) return;
 
@@ -2838,6 +2922,39 @@ function renderSettings() {
   elements.demoDataToggle.checked = settings.showDemoData;
 }
 
+function renderAccessManagement() {
+  const isAdmin = isCurrentUserAdmin();
+  elements.accessManagementPanel.classList.toggle("is-hidden", !isAdmin);
+  if (!isAdmin) return;
+
+  if (!userProfiles.length) {
+    elements.accessManagementList.innerHTML = `<p class="muted">Aucun compte trouvé. Applique le script Supabase puis reconnecte-toi.</p>`;
+    return;
+  }
+
+  elements.accessManagementList.innerHTML = userProfiles.map((profile) => {
+    const isSelf = profile.id === currentUser?.id;
+    return `
+      <label class="access-user-row">
+        <span>
+          <strong>${escapeHtml(profile.email)}</strong>
+          <small>${isSelf ? "Compte administrateur actuel" : roleLabel(profile.role)}</small>
+        </span>
+        <select data-profile-role="${escapeAttribute(profile.id)}"${isSelf ? " disabled" : ""}>
+          <option value="admin"${profile.role === "admin" ? " selected" : ""}>Administrateur</option>
+          <option value="manager"${profile.role === "manager" ? " selected" : ""}>Gestionnaire projets</option>
+          <option value="technician"${profile.role === "technician" ? " selected" : ""}>Technicien</option>
+        </select>
+      </label>
+    `;
+  }).join("");
+}
+
+function setAccessManagementMessage(message, isError = false) {
+  elements.accessManagementMessage.textContent = message;
+  elements.accessManagementMessage.classList.toggle("is-error", isError);
+}
+
 function toggleSettingsPanel() {
   elements.settingsPanel.classList.toggle("is-hidden");
 }
@@ -3022,3 +3139,4 @@ function escapeHtml(value) {
 function escapeAttribute(value) {
   return escapeHtml(value).replaceAll("`", "&#096;");
 }
+
