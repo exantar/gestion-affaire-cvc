@@ -163,7 +163,7 @@
               <div class="panel-heading">
                 <div>
                   <h2>Planning hebdomadaire</h2>
-                  <p class="muted">Tâches prévues sur le chantier sélectionné, par semaine.</p>
+                  <p class="muted">Interventions affectées au technicien, tous chantiers confondus.</p>
                 </div>
               </div>
               <div id="techPlanningList" class="planning-list tech-planning-list"></div>
@@ -580,6 +580,10 @@
                     Pour qui
                     <select id="todoOwnerInput" required></select>
                   </label>
+                  <fieldset class="todo-form-wide todo-technicians-field">
+                    <legend>Techniciens affectés</legend>
+                    <div id="todoTechniciansInput" class="todo-technicians-input"></div>
+                  </fieldset>
                   <label>
                     Zone / lot
                     <input id="todoZoneInput" type="text" placeholder="Ex. Local technique, réseaux toiture" />

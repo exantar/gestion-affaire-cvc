@@ -1187,6 +1187,49 @@ td small {
   grid-column: span 2;
 }
 
+.todo-technicians-field {
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.todo-technicians-field legend {
+  margin-bottom: 8px;
+  color: var(--muted);
+  font-size: 0.84rem;
+  font-weight: 700;
+}
+
+.todo-technicians-input {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  min-height: 42px;
+  padding: 8px;
+  border: 1px solid var(--line);
+  background: var(--panel-soft);
+}
+
+.todo-technician-option {
+  display: inline-flex !important;
+  align-items: center;
+  gap: 6px;
+  width: auto !important;
+  padding: 5px 8px;
+  border: 1px solid var(--line);
+  background: var(--panel);
+  color: var(--ink) !important;
+  cursor: pointer;
+}
+
+.todo-technician-option input {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  accent-color: var(--accent);
+}
+
 .todo-form-project {
   grid-column: 1 / -1;
   border: 1px solid var(--line);

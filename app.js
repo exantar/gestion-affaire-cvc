@@ -470,6 +470,7 @@ const elements = {
   todoEditSelect: document.querySelector("#todoEditSelect"),
   todoTitleInput: document.querySelector("#todoTitleInput"),
   todoOwnerInput: document.querySelector("#todoOwnerInput"),
+  todoTechniciansInput: document.querySelector("#todoTechniciansInput"),
   todoProjectSelect: document.querySelector("#todoProjectSelect"),
   todoZoneInput: document.querySelector("#todoZoneInput"),
   todoDueInput: document.querySelector("#todoDueInput"),
@@ -519,6 +520,7 @@ elements.techProjectSelect.addEventListener("change", () => {
   renderDetail();
   renderTechnicianView();
 });
+elements.techNameInput.addEventListener("change", renderTechPlanning);
 elements.timeEntryForm.addEventListener("submit", submitTimeEntry);
 elements.createProjectConfirm.addEventListener("click", createProject);
 elements.addLotBtn.addEventListener("click", addLot);
@@ -728,6 +730,7 @@ function normalizeTodoTask(task) {
     id: task.id || crypto.randomUUID(),
     title: task.title || "Nouvelle tâche",
     owner: task.owner || "À affecter",
+    technicians: Array.isArray(task.technicians) ? task.technicians.filter(Boolean) : [],
     projectId: task.projectId || "",
     zone: task.zone || "",
     milestone: task.milestone || "",
@@ -1323,8 +1326,9 @@ function renderTechnicianView() {
     .join("");
   elements.techThemeSelect.innerHTML = themeOptions(project, elements.techThemeSelect.value || project.lots[0]?.name);
   if (!elements.techThemeSelect.value && project.lots[0]) elements.techThemeSelect.value = project.lots[0].name;
+  if (!elements.techNameInput.value) elements.techNameInput.value = getCurrentUserTaskOwner();
   renderTechEntryList(project);
-  renderTechPlanning(project);
+  renderTechPlanning();
 }
 
 function renderTechEntryList(project) {
@@ -1351,14 +1355,16 @@ function renderTechEntryList(project) {
   });
 }
 
-function renderTechPlanning(project) {
+function renderTechPlanning() {
   elements.techPlanningList.innerHTML = "";
+  const technician = elements.techNameInput.value.trim() || getCurrentUserTaskOwner();
   const tasks = getTodoWorkItems()
-    .filter((task) => task.projectId === project.id)
+    .filter((task) => task.technicians?.includes(technician))
+    .filter((task) => task.status !== "done")
     .sort((a, b) => new Date(a.due) - new Date(b.due));
 
   if (!tasks.length) {
-    elements.techPlanningList.innerHTML = `<p class="muted">Aucune tâche planifiée pour ce chantier.</p>`;
+    elements.techPlanningList.innerHTML = `<p class="muted">Aucune intervention affectée à ${escapeHtml(technician)}.</p>`;
     return;
   }
 
@@ -1410,13 +1416,16 @@ function renderTechPlanning(project) {
 
 function createTechPlanningTaskCard(task) {
   const item = document.createElement("button");
+  const project = projects.find((item) => item.id === task.projectId);
+  const location = project ? `${project.name} · ${project.city}` : "Hors chantier";
   const dueKind = getTodoDueKind(task);
   item.type = "button";
   item.className = `planning-item todo-${task.status} due-${dueKind.key}`;
   item.innerHTML = `
     <span class="planning-chip">${escapeHtml(dueKind.label)}</span>
     <strong>${escapeHtml(task.title)}</strong>
-    <small>${escapeHtml(task.owner)} · ${escapeHtml(task.zone || "Zone à préciser")}</small>
+    <small>${escapeHtml(location)}</small>
+    <small>${escapeHtml(task.zone || "Zone à préciser")}</small>
     <small>${escapeHtml(labelTodoStatus(task.status))}</small>
     ${task.constraint ? `<em>${escapeHtml(task.constraint)}</em>` : ""}
   `;
@@ -1713,6 +1722,7 @@ function calculateGoNoGoQuestionScore(goNoGo) {
 function renderTodoList() {
   renderTodoProjectOptions();
   renderTodoOwnerOptions();
+  renderTodoTechnicianOptions();
   const allTasks = getTodoWorkItems();
   renderTodoFilters(allTasks);
   const visibleTasks = filterTodoTasks(allTasks);
@@ -1784,6 +1794,7 @@ function createTodoTaskCard(task) {
       </select>
     </div>
     <span class="todo-owner">Pour ${escapeHtml(task.owner)}</span>
+    ${task.technicians?.length ? `<small>Techniciens : ${escapeHtml(formatTechnicianNames(task.technicians))}</small>` : ""}
     <small>${projectName ? `Chantier : ${escapeHtml(projectName)}` : "Hors chantier"}</small>
     <small>${formatDate(task.due)}${task.zone ? ` - ${escapeHtml(task.zone)}` : ""}</small>
     ${task.constraint ? `<p class="constraint-note">${escapeHtml(task.constraint)}</p>` : ""}
@@ -1909,6 +1920,7 @@ function selectTodoTaskForEdit(taskId) {
   elements.todoEditSelect.value = task.id;
   elements.todoTitleInput.value = task.title;
   elements.todoOwnerInput.value = task.owner;
+  renderTodoTechnicianOptions(task.technicians || []);
   elements.todoZoneInput.value = task.zone || "";
   elements.todoProjectSelect.value = task.projectId || "";
   elements.todoDueInput.value = task.due || todayString();
@@ -1932,6 +1944,7 @@ function clearTodoEditor() {
   elements.todoDueInput.value = todayString();
   elements.todoProjectSelect.disabled = false;
   elements.todoOwnerInput.value = getCurrentUserTaskOwner();
+  renderTodoTechnicianOptions([]);
   elements.todoZoneInput.disabled = false;
   elements.todoConstraintInput.disabled = false;
   elements.todoDeleteSelectedBtn.disabled = true;
@@ -2093,6 +2106,7 @@ function getTodoWorkItems() {
       id: `project-action:${project.id}:${index}`,
       title: action.label,
       owner: action.owner || project.manager || "Responsable chantier",
+      technicians: Array.isArray(action.technicians) ? action.technicians : [],
       projectId: project.id,
       zone: project.city || "",
       milestone: "Action chantier",
@@ -2132,6 +2146,32 @@ function renderTodoOwnerOptions() {
     ? options.map((option) => `<option value="${escapeAttribute(option.value)}">${escapeHtml(option.label)}</option>`).join("")
     : `<option value="${escapeAttribute(getCurrentUserTaskOwner())}">${escapeHtml(getCurrentUserTaskOwner())}</option>`;
   elements.todoOwnerInput.value = target;
+}
+
+function renderTodoTechnicianOptions(selectedTechnicians = getSelectedTodoTechnicians()) {
+  const technicians = getAssignableProfiles().filter((profile) => profile.role === "technician");
+  if (!technicians.length) {
+    elements.todoTechniciansInput.innerHTML = `<p class="muted">Aucun technicien disponible. Crée les comptes et attribue leur le rôle Technicien.</p>`;
+    return;
+  }
+
+  elements.todoTechniciansInput.innerHTML = technicians.map((profile) => {
+    const name = getTaskOwnerName(profile.email);
+    return `
+      <label class="todo-technician-option">
+        <input type="checkbox" value="${escapeAttribute(name)}"${selectedTechnicians.includes(name) ? " checked" : ""} />
+        <span>${escapeHtml(name)}</span>
+      </label>
+    `;
+  }).join("");
+}
+
+function getSelectedTodoTechnicians() {
+  return [...elements.todoTechniciansInput.querySelectorAll("input:checked")].map((input) => input.value);
+}
+
+function formatTechnicianNames(technicians) {
+  return technicians.join(", ");
 }
 
 function getAssignableProfiles() {
@@ -2474,6 +2514,7 @@ function addTodoTask(event) {
     id: crypto.randomUUID(),
     title: elements.todoTitleInput.value.trim(),
     owner: elements.todoOwnerInput.value.trim(),
+    technicians: getSelectedTodoTechnicians(),
     projectId: elements.todoProjectSelect.value,
     zone: elements.todoZoneInput.value.trim(),
     milestone: "",
@@ -2503,6 +2544,7 @@ function updateTodoTaskFromEditor(taskId) {
 
     action.label = title;
     action.owner = owner;
+    action.technicians = getSelectedTodoTechnicians();
     action.due = elements.todoDueInput.value;
     action.done = elements.todoStatusInput.value === "done";
 
@@ -2518,6 +2560,7 @@ function updateTodoTaskFromEditor(taskId) {
 
   task.title = title;
   task.owner = owner;
+  task.technicians = getSelectedTodoTechnicians();
   task.projectId = elements.todoProjectSelect.value;
   task.zone = elements.todoZoneInput.value.trim();
   task.milestone = "";
