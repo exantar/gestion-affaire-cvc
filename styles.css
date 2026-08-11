@@ -1454,6 +1454,105 @@ td small {
   overflow-x: auto;
 }
 
+.geo-planning-week {
+  overflow-x: auto;
+}
+
+.geo-planning-grid {
+  display: grid;
+  grid-template-columns: minmax(230px, 1.5fr) repeat(7, minmax(145px, 1fr));
+  min-width: 1245px;
+  border-top: 1px solid var(--line);
+  border-left: 1px solid var(--line);
+}
+
+.geo-planning-head,
+.geo-planning-row-label,
+.geo-planning-cell {
+  min-height: 68px;
+  border-right: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+}
+
+.geo-planning-head {
+  display: grid;
+  place-items: center;
+  padding: 8px;
+  background: var(--ink);
+  color: #ffffff;
+  font-size: 0.78rem;
+  font-weight: 900;
+  text-align: center;
+}
+
+.geo-planning-head.is-today {
+  background: var(--accent);
+  box-shadow: inset 0 -4px 0 var(--accent-yellow);
+}
+
+.geo-planning-row-label {
+  display: flex;
+  align-items: center;
+  padding: 10px;
+  background: var(--panel-soft);
+  color: var(--ink);
+  font-size: 0.84rem;
+  font-weight: 900;
+}
+
+.geo-planning-cell {
+  display: grid;
+  align-content: start;
+  gap: 6px;
+  padding: 6px;
+  background: var(--panel);
+}
+
+.geo-planning-row-label.is-delivery,
+.geo-planning-cell.is-delivery {
+  background: color-mix(in srgb, var(--accent-yellow) 18%, var(--panel));
+}
+
+.geo-planning-item {
+  display: grid;
+  gap: 4px;
+  width: 100%;
+  padding: 7px;
+  border: 1px solid var(--line);
+  border-left: 4px solid var(--accent);
+  border-radius: 2px;
+  background: var(--panel-soft);
+  color: var(--ink);
+  text-align: left;
+}
+
+.geo-planning-item:hover,
+.geo-planning-item:focus-visible {
+  border-color: var(--accent);
+  outline: 2px solid rgba(238, 50, 36, 0.18);
+}
+
+.geo-planning-item.is-delivery {
+  border-left-color: var(--accent-yellow);
+}
+
+.geo-planning-item strong,
+.geo-planning-item small,
+.geo-planning-item em {
+  overflow-wrap: anywhere;
+}
+
+.geo-planning-item strong {
+  font-size: 0.8rem;
+}
+
+.geo-planning-item small,
+.geo-planning-item em {
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-style: normal;
+}
+
 .planning-day {
   min-width: 130px;
   border: 1px solid var(--line);

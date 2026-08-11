@@ -499,6 +499,7 @@ const elements = {
   technicianScheduleForm: document.querySelector("#technicianScheduleForm"),
   technicianScheduleEditSelect: document.querySelector("#technicianScheduleEditSelect"),
   technicianScheduleTitleInput: document.querySelector("#technicianScheduleTitleInput"),
+  technicianScheduleKindInput: document.querySelector("#technicianScheduleKindInput"),
   technicianScheduleProjectInput: document.querySelector("#technicianScheduleProjectInput"),
   technicianScheduleZoneInput: document.querySelector("#technicianScheduleZoneInput"),
   technicianScheduleDateInput: document.querySelector("#technicianScheduleDateInput"),
@@ -794,6 +795,7 @@ function normalizeTechnicianScheduleItem(item) {
   return {
     id: item.id || crypto.randomUUID(),
     title: item.title || "Nouvelle intervention",
+    kind: item.kind === "delivery" ? "delivery" : "task",
     projectId: item.projectId || "",
     zone: item.zone || "",
     date: item.date || todayString(),
@@ -1450,6 +1452,7 @@ function renderTechPlanning() {
   elements.techPlanningList.innerHTML = "";
   const technician = elements.techNameInput.value.trim() || getCurrentUserTaskOwner();
   const tasks = technicianSchedule
+    .filter((item) => item.kind !== "delivery")
     .filter((item) => item.technicians.includes(technician))
     .sort((a, b) => new Date(a.date) - new Date(b.date));
 
@@ -2262,45 +2265,86 @@ function renderTechnicianSchedule() {
 
   groupTodoTasksByWeek(technicianSchedule).forEach(({ weekStart, weekEnd, tasks }) => {
     const section = document.createElement("section");
-    section.className = "planning-week";
+    const taskCount = tasks.filter((item) => item.kind !== "delivery").length;
+    const deliveryCount = tasks.filter((item) => item.kind === "delivery").length;
+    section.className = "planning-week geo-planning-week";
     section.innerHTML = `
       <header class="planning-week-head">
         <div>
           <span>Semaine ${getIsoWeekNumber(weekStart)}</span>
           <strong>${formatShortDate(weekStart)} - ${formatShortDate(weekEnd)}</strong>
         </div>
-        <div class="planning-week-stats"><span>${tasks.length} intervention${tasks.length > 1 ? "s" : ""}</span></div>
+        <div class="planning-week-stats"><span>${taskCount} tâche${taskCount > 1 ? "s" : ""}</span><span>${deliveryCount} livraison${deliveryCount > 1 ? "s" : ""}</span></div>
       </header>
-      <div class="planning-week-grid"></div>
+      <div class="geo-planning-grid"></div>
     `;
-    const grid = section.querySelector(".planning-week-grid");
-    getWeekDays(weekStart).forEach((day) => {
-      const dayItems = tasks.filter((item) => isSameDay(parseTodoDate(item.date), day));
-      const column = document.createElement("div");
-      column.className = `planning-day${isSameDay(day, new Date()) ? " is-today" : ""}`;
-      column.innerHTML = `<div class="planning-day-head"><strong>${formatWeekday(day)}</strong><span>${formatShortDate(day)}</span></div><div class="planning-day-tasks"></div>`;
-      const target = column.querySelector(".planning-day-tasks");
-      if (!dayItems.length) {
-        target.innerHTML = `<p class="muted">Libre</p>`;
-      } else {
-        dayItems.forEach((item) => target.append(createTechnicianScheduleCard(item)));
-      }
-      grid.append(column);
-    });
+    const grid = section.querySelector(".geo-planning-grid");
+    renderGeoPlanningWeek(grid, weekStart, tasks);
     elements.technicianScheduleList.append(section);
   });
+}
+
+function renderGeoPlanningWeek(grid, weekStart, items) {
+  const days = getWeekDays(weekStart);
+  const taskRows = new Map();
+  items.filter((item) => item.kind !== "delivery").forEach((item) => {
+    const key = getScheduleLocationKey(item);
+    if (!taskRows.has(key)) taskRows.set(key, { label: getScheduleLocationLabel(item), items: [] });
+    taskRows.get(key).items.push(item);
+  });
+
+  grid.append(createGeoHeaderCell("Chantier / localisation"));
+  days.forEach((day) => grid.append(createGeoHeaderCell(`${formatWeekday(day)} ${formatShortDate(day)}`, isSameDay(day, new Date()))));
+
+  [...taskRows.values()].sort((left, right) => left.label.localeCompare(right.label, "fr")).forEach((row) => {
+    grid.append(createGeoRowLabel(row.label));
+    days.forEach((day) => grid.append(createGeoDayCell(row.items.filter((item) => isSameDay(parseTodoDate(item.date), day)))));
+  });
+
+  grid.append(createGeoRowLabel("Livraisons prévues", true));
+  days.forEach((day) => grid.append(createGeoDayCell(items.filter((item) => item.kind === "delivery" && isSameDay(parseTodoDate(item.date), day)), true)));
+}
+
+function getScheduleLocationKey(item) {
+  return `${item.projectId || "outside"}::${item.zone || "default"}`;
+}
+
+function getScheduleLocationLabel(item) {
+  const project = projects.find((project) => project.id === item.projectId);
+  const chantier = project ? `${project.name} - ${project.city}` : "Hors chantier";
+  return item.zone ? `${chantier} · ${item.zone}` : chantier;
+}
+
+function createGeoHeaderCell(label, isToday = false) {
+  const cell = document.createElement("div");
+  cell.className = `geo-planning-head${isToday ? " is-today" : ""}`;
+  cell.textContent = label;
+  return cell;
+}
+
+function createGeoRowLabel(label, isDelivery = false) {
+  const cell = document.createElement("div");
+  cell.className = `geo-planning-row-label${isDelivery ? " is-delivery" : ""}`;
+  cell.textContent = label;
+  return cell;
+}
+
+function createGeoDayCell(items, isDelivery = false) {
+  const cell = document.createElement("div");
+  cell.className = `geo-planning-cell${isDelivery ? " is-delivery" : ""}`;
+  if (!items.length) return cell;
+  items.forEach((item) => cell.append(createTechnicianScheduleCard(item)));
+  return cell;
 }
 
 function createTechnicianScheduleCard(item) {
   const project = projects.find((project) => project.id === item.projectId);
   const card = document.createElement("button");
   card.type = "button";
-  card.className = "planning-item technician-planning-item";
+  card.className = `geo-planning-item${item.kind === "delivery" ? " is-delivery" : ""}`;
   card.innerHTML = `
     <strong>${escapeHtml(item.title)}</strong>
-    <small>${escapeHtml(project ? `${project.name} · ${project.city}` : "Hors chantier")}</small>
-    <small>${escapeHtml(item.zone || "Lieu à préciser")}</small>
-    <small>Techniciens : ${escapeHtml(item.technicians.join(", ") || "À affecter")}</small>
+    ${item.kind === "delivery" ? `<small>${escapeHtml(project ? `${project.name} · ${project.city}` : "Hors chantier")}</small>` : `<small>${escapeHtml(item.technicians.join(", ") || "À affecter")}</small>`}
     ${item.note ? `<em>${escapeHtml(item.note)}</em>` : ""}
   `;
   card.addEventListener("click", () => selectTechnicianScheduleItem(item.id));
@@ -2365,6 +2409,7 @@ function selectTechnicianScheduleItem(id) {
   }
   selectedTechnicianScheduleId = item.id;
   elements.technicianScheduleTitleInput.value = item.title;
+  elements.technicianScheduleKindInput.value = item.kind;
   elements.technicianScheduleProjectInput.value = item.projectId;
   elements.technicianScheduleZoneInput.value = item.zone;
   elements.technicianScheduleDateInput.value = item.date;
@@ -2378,6 +2423,7 @@ function clearTechnicianScheduleEditor() {
   selectedTechnicianScheduleId = "";
   elements.technicianScheduleForm.reset();
   elements.technicianScheduleDateInput.value = todayString();
+  elements.technicianScheduleKindInput.value = "task";
   renderTechnicianScheduleProjectOptions();
   renderTechnicianScheduleAssignees([]);
   renderTechnicianScheduleEditOptions();
@@ -2391,13 +2437,14 @@ function saveTechnicianScheduleItem(event) {
 
   const values = {
     title: elements.technicianScheduleTitleInput.value.trim(),
+    kind: elements.technicianScheduleKindInput.value,
     projectId: elements.technicianScheduleProjectInput.value,
     zone: elements.technicianScheduleZoneInput.value.trim(),
     date: elements.technicianScheduleDateInput.value,
     technicians: getSelectedTechnicianScheduleAssignees(),
     note: elements.technicianScheduleNoteInput.value.trim()
   };
-  if (!values.technicians.length) {
+  if (values.kind !== "delivery" && !values.technicians.length) {
     alert("Affecte au moins un technicien à cette intervention.");
     return;
   }

@@ -664,16 +664,23 @@
                   <select id="technicianScheduleEditSelect"><option value="">Nouvelle intervention</option></select>
                 </label>
                 <label>
-                  Intervention
-                  <input id="technicianScheduleTitleInput" type="text" required placeholder="Ex. Mise en service CTA" />
+                  Type
+                  <select id="technicianScheduleKindInput">
+                    <option value="task">Intervention</option>
+                    <option value="delivery">Livraison prévue</option>
+                  </select>
+                </label>
+                <label>
+                  Libellé
+                  <input id="technicianScheduleTitleInput" type="text" required placeholder="Ex. Mise en service CTA ou livraison centrale de traitement d'air" />
                 </label>
                 <label>
                   Chantier
                   <select id="technicianScheduleProjectInput"></select>
                 </label>
                 <label>
-                  Zone / lieu
-                  <input id="technicianScheduleZoneInput" type="text" placeholder="Ex. Local technique, niveau 2" />
+                  Localisation précise
+                  <input id="technicianScheduleZoneInput" type="text" placeholder="Ex. Bâtiment A, local technique, niveau 2" />
                 </label>
                 <label>
                   Date d'intervention
