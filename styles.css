@@ -1400,6 +1400,18 @@ td small {
   min-height: 32px;
 }
 
+.project-order-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.project-order-duplicate {
+  min-height: 32px;
+  padding: 0 8px;
+  font-size: 0.76rem;
+}
+
 .project-delivery-item {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);

@@ -1806,8 +1806,9 @@ function renderProjectOrders(project) {
     const body = section.querySelector("tbody");
     zoneOrders.sort((left, right) => new Date(left.date) - new Date(right.date)).forEach((order) => {
       const row = document.createElement("tr");
-      row.innerHTML = `<td><strong>${escapeHtml(order.item)}</strong>${order.note ? `<small>${escapeHtml(order.note)}</small>` : ""}</td><td>${formatNumber(order.quantity)} ${escapeHtml(order.unit)}</td><td>${escapeHtml(order.supplier || "À consulter")}</td><td>${escapeHtml(order.reference || "-")}</td><td>${formatDate(order.date)}</td><td><span class="order-status ${order.status}">${orderStatusLabel(order.status)}</span></td><td><button class="icon-button small" type="button" title="Modifier la commande" aria-label="Modifier la commande"><span aria-hidden="true">✎</span></button></td>`;
-      row.querySelector("button").addEventListener("click", () => selectProjectOrder(order.id));
+      row.innerHTML = `<td><strong>${escapeHtml(order.item)}</strong>${order.note ? `<small>${escapeHtml(order.note)}</small>` : ""}</td><td>${formatNumber(order.quantity)} ${escapeHtml(order.unit)}</td><td>${escapeHtml(order.supplier || "À consulter")}</td><td>${escapeHtml(order.reference || "-")}</td><td>${formatDate(order.date)}</td><td><span class="order-status ${order.status}">${orderStatusLabel(order.status)}</span></td><td><div class="project-order-actions"><button class="icon-button small" type="button" title="Modifier la commande" aria-label="Modifier la commande"><span aria-hidden="true">✎</span></button><button class="secondary-button project-order-duplicate" type="button">Dupliquer</button></div></td>`;
+      row.querySelector(".icon-button").addEventListener("click", () => selectProjectOrder(order.id));
+      row.querySelector(".project-order-duplicate").addEventListener("click", () => duplicateProjectOrder(order.id));
       body.append(row);
     });
     elements.projectOrdersByZone.append(section);
@@ -1905,6 +1906,22 @@ function deleteSelectedProjectOrder() {
   project.orders = project.orders.filter((entry) => entry.id !== order.id);
   saveProjects();
   closeProjectOrderEditor();
+  renderDetail();
+}
+
+function duplicateProjectOrder(id) {
+  if (!requireProjectManagerAction()) return;
+  const project = getSelectedProject();
+  const order = project.orders?.find((entry) => entry.id === id);
+  if (!order) return;
+  const availableZones = [...new Set([...(project.orderZones || []), ...(project.orders || []).map((entry) => entry.zone)].filter(Boolean))];
+  const suggestion = availableZones.length ? `\nZones existantes : ${availableZones.join(", ")}` : "";
+  const targetZone = (prompt(`Dupliquer « ${order.item} » dans quelle zone ?${suggestion}`, order.zone) || "").trim().replace(/\s+/g, " ");
+  if (!targetZone) return;
+  project.orders.push({ ...order, id: crypto.randomUUID(), zone: targetZone });
+  project.orderZones ||= [];
+  if (!project.orderZones.some((zone) => zone.toLocaleLowerCase("fr") === targetZone.toLocaleLowerCase("fr"))) project.orderZones.push(targetZone);
+  saveProjects();
   renderDetail();
 }
 
