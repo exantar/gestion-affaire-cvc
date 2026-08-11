@@ -24,7 +24,7 @@ to authenticated
 using (true)
 with check (true);
 
--- Rôles des utilisateurs de l'application.
+-- Roles des utilisateurs de l'application.
 create table if not exists public.profiles (
   id uuid primary key references auth.users(id) on delete cascade,
   email text not null unique,
@@ -57,7 +57,7 @@ create trigger on_auth_user_created
   after insert on auth.users
   for each row execute procedure public.handle_new_user();
 
--- Crée les profils des comptes déjà existants et accorde l'administration à Axel.
+-- Cree les profils des comptes deja existants et accorde l'administration a Axel.
 insert into public.profiles (id, email, role)
 select id, lower(email), case when lower(email) = 'axel.franco@eiffage.com' then 'admin' else 'technician' end
 from auth.users
@@ -77,13 +77,26 @@ as $$
   );
 $$;
 
+create or replace function public.can_manage_projects()
+returns boolean
+language sql
+stable
+security definer set search_path = public
+as $$
+  select exists (
+    select 1 from public.profiles
+    where id = auth.uid() and role in ('admin', 'manager')
+  );
+$$;
+
 drop policy if exists "Users read own profile" on public.profiles;
 drop policy if exists "Admins read all profiles" on public.profiles;
+drop policy if exists "Managers read assignable profiles" on public.profiles;
 drop policy if exists "Admins update profiles" on public.profiles;
 
 create policy "Users read own profile"
 on public.profiles for select to authenticated
-using (id = auth.uid() or public.is_admin());
+using (id = auth.uid() or public.can_manage_projects());
 
 create policy "Admins update profiles"
 on public.profiles for update to authenticated

@@ -191,6 +191,7 @@ let goNoGoTemplate = null;
 let currentUser = null;
 let currentProfile = null;
 let userProfiles = [];
+let todoOwnerFilterInitialized = false;
 let authReady = false;
 
 const excelFieldGroups = [
@@ -858,6 +859,7 @@ async function signOutUser() {
   currentUser = null;
   currentProfile = null;
   userProfiles = [];
+  todoOwnerFilterInitialized = false;
   applyAuthState();
 }
 
@@ -929,11 +931,11 @@ async function loadCurrentProfile() {
     return;
   }
   currentProfile = data;
-  if (isCurrentUserAdmin()) await loadUserProfiles();
+  if (canManageProjects()) await loadUserProfiles();
 }
 
 async function loadUserProfiles() {
-  if (!remoteStore.enabled || !isCurrentUserAdmin()) return;
+  if (!remoteStore.enabled || !canManageProjects()) return;
   const { data, error } = await remoteStore.client
     .from("profiles")
     .select("id, email, role, created_at")
@@ -1710,6 +1712,7 @@ function calculateGoNoGoQuestionScore(goNoGo) {
 
 function renderTodoList() {
   renderTodoProjectOptions();
+  renderTodoOwnerOptions();
   const allTasks = getTodoWorkItems();
   renderTodoFilters(allTasks);
   const visibleTasks = filterTodoTasks(allTasks);
@@ -1823,10 +1826,14 @@ function renderTodoFilters(tasks = getTodoWorkItems()) {
     .sort((a, b) => a.localeCompare(b, "fr"));
 
   elements.todoOwnerFilterSelect.innerHTML = `
+    <option value="__me__">Mes tâches</option>
     <option value="">Toutes les personnes</option>
     ${owners.map((owner) => `<option value="${escapeAttribute(owner)}">${escapeHtml(owner)}</option>`).join("")}
   `;
-  elements.todoOwnerFilterSelect.value = owners.includes(selectedOwner) ? selectedOwner : "";
+  const ownerValues = ["", "__me__", ...owners];
+  const defaultOwner = todoOwnerFilterInitialized ? "" : "__me__";
+  elements.todoOwnerFilterSelect.value = ownerValues.includes(selectedOwner) ? selectedOwner : defaultOwner;
+  todoOwnerFilterInitialized = true;
 
   elements.todoProjectFilterSelect.innerHTML = `
     <option value="">Tous les chantiers</option>
@@ -1841,7 +1848,7 @@ function filterTodoTasks(tasks = getTodoWorkItems()) {
   const owner = elements.todoOwnerFilterSelect.value;
   const projectId = elements.todoProjectFilterSelect.value;
   return tasks
-    .filter((task) => !owner || task.owner === owner)
+    .filter((task) => !owner || (owner === "__me__" ? task.owner === getCurrentUserTaskOwner() : task.owner === owner))
     .filter((task) => {
       if (!projectId) return true;
       if (projectId === "__none__") return !task.projectId;
@@ -1924,6 +1931,7 @@ function clearTodoEditor() {
   elements.todoStatusInput.value = "backlog";
   elements.todoDueInput.value = todayString();
   elements.todoProjectSelect.disabled = false;
+  elements.todoOwnerInput.value = getCurrentUserTaskOwner();
   elements.todoZoneInput.disabled = false;
   elements.todoConstraintInput.disabled = false;
   elements.todoDeleteSelectedBtn.disabled = true;
@@ -2106,6 +2114,42 @@ function renderTodoProjectOptions() {
   const selected = elements.todoProjectSelect.value;
   elements.todoProjectSelect.innerHTML = todoProjectOptions(selected);
   elements.todoProjectSelect.value = projects.some((project) => project.id === selected) ? selected : "";
+}
+
+function renderTodoOwnerOptions() {
+  const selected = elements.todoOwnerInput.value;
+  const profileOptions = getAssignableProfiles().map((profile) => ({
+    value: getTaskOwnerName(profile.email),
+    label: `${getTaskOwnerName(profile.email)} - ${roleLabel(profile.role)}`
+  }));
+  const historicOwners = getTodoWorkItems().map((task) => task.owner).filter(Boolean)
+    .filter((owner) => !profileOptions.some((option) => option.value === owner))
+    .map((owner) => ({ value: owner, label: `${owner} - ancien responsable` }));
+  const options = [...profileOptions, ...historicOwners];
+  const target = options.some((option) => option.value === selected) ? selected : getCurrentUserTaskOwner();
+
+  elements.todoOwnerInput.innerHTML = options.length
+    ? options.map((option) => `<option value="${escapeAttribute(option.value)}">${escapeHtml(option.label)}</option>`).join("")
+    : `<option value="${escapeAttribute(getCurrentUserTaskOwner())}">${escapeHtml(getCurrentUserTaskOwner())}</option>`;
+  elements.todoOwnerInput.value = target;
+}
+
+function getAssignableProfiles() {
+  const profiles = [...userProfiles];
+  if (currentProfile && !profiles.some((profile) => profile.id === currentProfile.id)) profiles.push(currentProfile);
+  return profiles.sort((left, right) => getTaskOwnerName(left.email).localeCompare(getTaskOwnerName(right.email), "fr"));
+}
+
+function getCurrentUserTaskOwner() {
+  return getTaskOwnerName(currentProfile?.email || currentUser?.email || "Moi");
+}
+
+function getTaskOwnerName(email) {
+  const localPart = String(email || "").split("@")[0].trim();
+  if (!localPart) return "Responsable";
+  return localPart.split(".").filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1).toLowerCase())
+    .join(" ");
 }
 
 function todoProjectOptions(selected) {
@@ -2574,7 +2618,7 @@ function openTodoTaskCreationForSelectedProject() {
   clearTodoEditor();
   setActiveSpace("todolist");
   elements.todoProjectSelect.value = project.id;
-  elements.todoOwnerInput.value = project.manager || "";
+  elements.todoOwnerInput.value = getCurrentUserTaskOwner();
   elements.todoDueInput.value = project.nextDate || todayString();
   elements.todoTitleInput.focus();
 }
