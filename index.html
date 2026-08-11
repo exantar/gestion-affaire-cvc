@@ -45,6 +45,7 @@
           <button id="projectSpaceBtn" class="space-button is-active" data-space="chantiers" type="button">Chantiers</button>
           <button id="goNoGoSpaceBtn" class="space-button" data-space="gonogo" type="button">Go / No-Go</button>
           <button id="todoSpaceBtn" class="space-button" data-space="todolist" type="button">Todo List</button>
+          <button id="planningSpaceBtn" class="space-button" data-space="planning" type="button">Planning</button>
         </div>
 
         <div class="todo-view-tabs" aria-label="Menu Todo List">
@@ -580,10 +581,6 @@
                     Pour qui
                     <select id="todoOwnerInput" required></select>
                   </label>
-                  <fieldset class="todo-form-wide todo-technicians-field">
-                    <legend>Techniciens affectés</legend>
-                    <div id="todoTechniciansInput" class="todo-technicians-input"></div>
-                  </fieldset>
                   <label>
                     Zone / lot
                     <input id="todoZoneInput" type="text" placeholder="Ex. Local technique, réseaux toiture" />
@@ -651,6 +648,52 @@
                 </div>
                 <div id="todoPlanningList" class="planning-list"></div>
               </section>
+            </section>
+
+            <section class="panel technician-schedule-panel" data-panel="planning">
+              <div class="panel-heading">
+                <div>
+                  <p class="eyebrow">Organisation terrain</p>
+                  <h2>Planning techniciens</h2>
+                  <p class="muted">Affecte les interventions par date, chantier, lieu et technicien.</p>
+                </div>
+              </div>
+              <form id="technicianScheduleForm" class="todo-form">
+                <label class="todo-form-wide">
+                  Intervention à modifier
+                  <select id="technicianScheduleEditSelect"><option value="">Nouvelle intervention</option></select>
+                </label>
+                <label>
+                  Intervention
+                  <input id="technicianScheduleTitleInput" type="text" required placeholder="Ex. Mise en service CTA" />
+                </label>
+                <label>
+                  Chantier
+                  <select id="technicianScheduleProjectInput"></select>
+                </label>
+                <label>
+                  Zone / lieu
+                  <input id="technicianScheduleZoneInput" type="text" placeholder="Ex. Local technique, niveau 2" />
+                </label>
+                <label>
+                  Date d'intervention
+                  <input id="technicianScheduleDateInput" type="date" required />
+                </label>
+                <fieldset class="todo-form-wide technician-assignment-field">
+                  <legend>Techniciens affectés</legend>
+                  <div id="technicianScheduleAssignees" class="technician-assignees"></div>
+                </fieldset>
+                <label class="todo-form-wide">
+                  Consignes
+                  <input id="technicianScheduleNoteInput" type="text" placeholder="Accès, matériel, contact, consignes de sécurité..." />
+                </label>
+                <div class="todo-form-actions">
+                  <button id="technicianScheduleNewBtn" class="secondary-button" type="button">Nouvelle intervention</button>
+                  <button id="technicianScheduleDeleteBtn" class="secondary-button danger-button" type="button">Supprimer</button>
+                  <button id="technicianScheduleSubmitBtn" class="primary-button" type="submit">Enregistrer</button>
+                </div>
+              </form>
+              <div id="technicianScheduleList" class="planning-list"></div>
             </section>
 
             <section id="settingsPanel" class="panel settings-panel is-hidden" aria-label="Paramètres">

@@ -165,12 +165,14 @@ const storageKey = "gestion-affaires-cvc-v1";
 const settingsKey = "gestion-affaires-cvc-settings-v1";
 const goNoGoStorageKey = "gestion-affaires-cvc-gonogo-v2";
 const todoStorageKey = "gestion-affaires-cvc-todolist-v1";
+const technicianScheduleStorageKey = "gestion-affaires-cvc-technician-schedule-v1";
 const agencyPresetStorageKey = "gestion-affaires-cvc-agency-presets-v1";
 const remoteStateKeys = {
   projects: storageKey,
   settings: settingsKey,
   goNoGoCases: goNoGoStorageKey,
   todoTasks: todoStorageKey,
+  technicianSchedule: technicianScheduleStorageKey,
   agencyPresets: agencyPresetStorageKey
 };
 const remoteStore = createRemoteStore();
@@ -180,6 +182,8 @@ normalizeProjects(projects);
 let settings = loadSettings();
 let goNoGoCases = repairStoredText(loadGoNoGoCases());
 let todoTasks = [];
+let technicianSchedule = [];
+let selectedTechnicianScheduleId = "";
 let agencyPresets = [];
 let selectedTodoTaskId = "";
 let selectedGoNoGoId = goNoGoCases[0]?.id;
@@ -345,6 +349,7 @@ const seedTodoTasks = [
 ];
 
 todoTasks = repairStoredText(loadTodoTasks());
+technicianSchedule = repairStoredText(loadTechnicianSchedule());
 agencyPresets = repairStoredText(loadAgencyPresets());
 if (repairedStoredText) {
   saveProjects();
@@ -369,6 +374,7 @@ const elements = {
   projectSpaceBtn: document.querySelector("#projectSpaceBtn"),
   goNoGoSpaceBtn: document.querySelector("#goNoGoSpaceBtn"),
   todoSpaceBtn: document.querySelector("#todoSpaceBtn"),
+  planningSpaceBtn: document.querySelector("#planningSpaceBtn"),
   projectTitle: document.querySelector("#projectTitle"),
   projectSubtitle: document.querySelector("#projectSubtitle"),
   managementView: document.querySelector("#managementView"),
@@ -470,7 +476,6 @@ const elements = {
   todoEditSelect: document.querySelector("#todoEditSelect"),
   todoTitleInput: document.querySelector("#todoTitleInput"),
   todoOwnerInput: document.querySelector("#todoOwnerInput"),
-  todoTechniciansInput: document.querySelector("#todoTechniciansInput"),
   todoProjectSelect: document.querySelector("#todoProjectSelect"),
   todoZoneInput: document.querySelector("#todoZoneInput"),
   todoDueInput: document.querySelector("#todoDueInput"),
@@ -487,6 +492,18 @@ const elements = {
   todoDoingList: document.querySelector("#todoDoingList"),
   todoDoneList: document.querySelector("#todoDoneList"),
   todoPlanningList: document.querySelector("#todoPlanningList"),
+  technicianScheduleForm: document.querySelector("#technicianScheduleForm"),
+  technicianScheduleEditSelect: document.querySelector("#technicianScheduleEditSelect"),
+  technicianScheduleTitleInput: document.querySelector("#technicianScheduleTitleInput"),
+  technicianScheduleProjectInput: document.querySelector("#technicianScheduleProjectInput"),
+  technicianScheduleZoneInput: document.querySelector("#technicianScheduleZoneInput"),
+  technicianScheduleDateInput: document.querySelector("#technicianScheduleDateInput"),
+  technicianScheduleAssignees: document.querySelector("#technicianScheduleAssignees"),
+  technicianScheduleNoteInput: document.querySelector("#technicianScheduleNoteInput"),
+  technicianScheduleNewBtn: document.querySelector("#technicianScheduleNewBtn"),
+  technicianScheduleDeleteBtn: document.querySelector("#technicianScheduleDeleteBtn"),
+  technicianScheduleSubmitBtn: document.querySelector("#technicianScheduleSubmitBtn"),
+  technicianScheduleList: document.querySelector("#technicianScheduleList"),
   settingsGearBtn: document.querySelector("#settingsGearBtn"),
   settingsPanel: document.querySelector("#settingsPanel"),
   accessManagementPanel: document.querySelector("#accessManagementPanel"),
@@ -510,6 +527,7 @@ elements.authSignupBtn.addEventListener("click", signUpUser);
 elements.logoutBtn.addEventListener("click", signOutUser);
 elements.goNoGoSpaceBtn.addEventListener("click", () => setActiveSpace("gonogo"));
 elements.todoSpaceBtn.addEventListener("click", () => setActiveSpace("todolist"));
+elements.planningSpaceBtn.addEventListener("click", () => setActiveSpace("planning"));
 elements.searchInput.addEventListener("input", renderProjectList);
 elements.newProjectBtn.addEventListener("click", () => elements.projectDialog.showModal());
 elements.techModeBtn.addEventListener("click", () => setTechnicianMode(true));
@@ -558,6 +576,10 @@ elements.todoClearDoneBtn.addEventListener("click", clearCompletedTodoTasks);
 elements.todoEditSelect.addEventListener("change", () => selectTodoTaskForEdit(elements.todoEditSelect.value));
 elements.todoNewTaskBtn.addEventListener("click", clearTodoEditor);
 elements.todoDeleteSelectedBtn.addEventListener("click", deleteSelectedTodoFromEditor);
+elements.technicianScheduleForm.addEventListener("submit", saveTechnicianScheduleItem);
+elements.technicianScheduleEditSelect.addEventListener("change", () => selectTechnicianScheduleItem(elements.technicianScheduleEditSelect.value));
+elements.technicianScheduleNewBtn.addEventListener("click", clearTechnicianScheduleEditor);
+elements.technicianScheduleDeleteBtn.addEventListener("click", deleteSelectedTechnicianScheduleItem);
 elements.settingsGearBtn.addEventListener("click", toggleSettingsPanel);
 elements.darkModeToggle.addEventListener("change", () => updateSetting("darkMode", elements.darkModeToggle.checked));
 elements.compactModeToggle.addEventListener("change", () => updateSetting("compactMode", elements.compactModeToggle.checked));
@@ -584,6 +606,7 @@ loadBundledGoNoGoTemplate();
 applySettings();
 elements.techDateInput.value = todayString();
 elements.todoDueInput.value = todayString();
+elements.technicianScheduleDateInput.value = todayString();
 initAuth();
 
 function loadProjects() {
@@ -640,6 +663,17 @@ function loadTodoTasks() {
     return Array.isArray(parsed) && parsed.length ? parsed.map(normalizeTodoTask) : structuredClone(seedTodoTasks);
   } catch {
     return structuredClone(seedTodoTasks);
+  }
+}
+
+function loadTechnicianSchedule() {
+  const raw = localStorage.getItem(technicianScheduleStorageKey);
+  if (!raw) return [];
+  try {
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed.map(normalizeTechnicianScheduleItem) : [];
+  } catch {
+    return [];
   }
 }
 
@@ -730,13 +764,24 @@ function normalizeTodoTask(task) {
     id: task.id || crypto.randomUUID(),
     title: task.title || "Nouvelle tâche",
     owner: task.owner || "À affecter",
-    technicians: Array.isArray(task.technicians) ? task.technicians.filter(Boolean) : [],
     projectId: task.projectId || "",
     zone: task.zone || "",
     milestone: task.milestone || "",
     due: task.due || todayString(),
     status: task.status || "backlog",
     constraint: task.constraint || ""
+  };
+}
+
+function normalizeTechnicianScheduleItem(item) {
+  return {
+    id: item.id || crypto.randomUUID(),
+    title: item.title || "Nouvelle intervention",
+    projectId: item.projectId || "",
+    zone: item.zone || "",
+    date: item.date || todayString(),
+    technicians: Array.isArray(item.technicians) ? item.technicians.filter(Boolean) : [],
+    note: item.note || ""
   };
 }
 
@@ -767,6 +812,10 @@ function saveGoNoGoCases() {
 
 function saveTodoTasks() {
   saveAppState(todoStorageKey, todoTasks);
+}
+
+function saveTechnicianSchedule() {
+  saveAppState(technicianScheduleStorageKey, technicianSchedule);
 }
 
 function saveAgencyPresets() {
@@ -993,11 +1042,12 @@ async function syncFromRemote() {
   if (!remoteStore.enabled) return;
 
   try {
-    const [remoteProjects, remoteSettings, remoteGoNoGoCases, remoteTodoTasks, remoteAgencyPresets] = await Promise.all([
+    const [remoteProjects, remoteSettings, remoteGoNoGoCases, remoteTodoTasks, remoteTechnicianSchedule, remoteAgencyPresets] = await Promise.all([
       loadRemoteState(remoteStateKeys.projects),
       loadRemoteState(remoteStateKeys.settings),
       loadRemoteState(remoteStateKeys.goNoGoCases),
       loadRemoteState(remoteStateKeys.todoTasks),
+      loadRemoteState(remoteStateKeys.technicianSchedule),
       loadRemoteState(remoteStateKeys.agencyPresets)
     ]);
 
@@ -1030,6 +1080,13 @@ async function syncFromRemote() {
       localStorage.setItem(todoStorageKey, JSON.stringify(todoTasks));
     } else {
       saveTodoTasks();
+    }
+
+    if (Array.isArray(remoteTechnicianSchedule)) {
+      technicianSchedule = remoteTechnicianSchedule.map(normalizeTechnicianScheduleItem);
+      localStorage.setItem(technicianScheduleStorageKey, JSON.stringify(technicianSchedule));
+    } else {
+      saveTechnicianSchedule();
     }
 
     if (Array.isArray(remoteAgencyPresets)) {
@@ -1127,6 +1184,7 @@ function render() {
   renderDetail();
   renderTechnicianView();
   renderTodoList();
+  renderTechnicianSchedule();
   applyActiveTab();
 }
 
@@ -1249,16 +1307,17 @@ function setActiveTab(tab) {
 
 function setActiveSpace(space) {
   activeSpace = space;
-  if (space === "gonogo" || space === "todolist") {
+  if (["gonogo", "todolist", "planning"].includes(space)) {
     activeTab = space;
     setTechnicianMode(false);
     if (space === "gonogo") renderGoNoGo();
     if (space === "todolist") renderTodoList();
+    if (space === "planning") renderTechnicianSchedule();
     applyActiveTab();
     return;
   }
 
-  if (activeTab === "gonogo" || activeTab === "todolist") activeTab = "synthese";
+  if (["gonogo", "todolist", "planning"].includes(activeTab)) activeTab = "synthese";
   setTechnicianMode(false);
   renderDetail();
   applyActiveTab();
@@ -1270,21 +1329,24 @@ function applyActiveTab() {
   elements.projectSpaceBtn.classList.toggle("is-active", activeSpace === "chantiers");
   elements.goNoGoSpaceBtn.classList.toggle("is-active", activeSpace === "gonogo");
   elements.todoSpaceBtn.classList.toggle("is-active", activeSpace === "todolist");
+  elements.planningSpaceBtn.classList.toggle("is-active", activeSpace === "planning");
   document.querySelectorAll(".section-tab").forEach((button) => {
     button.classList.toggle("is-active", activeSpace === "chantiers" && button.dataset.tab === activeTab);
   });
 
-  if (activeSpace === "gonogo" || activeSpace === "todolist") {
+  if (["gonogo", "todolist", "planning"].includes(activeSpace)) {
     document.body.classList.remove("tech-mode");
     elements.technicianView.classList.add("is-hidden");
     elements.managementView.classList.remove("is-hidden");
     document.querySelectorAll("[data-panel]").forEach((panel) => {
       panel.classList.toggle("is-hidden", panel.dataset.panel !== activeSpace);
     });
-    elements.projectTitle.textContent = activeSpace === "gonogo" ? "Go / No-Go" : "Todo List";
+    elements.projectTitle.textContent = activeSpace === "gonogo" ? "Go / No-Go" : activeSpace === "planning" ? "Planning techniciens" : "Todo List";
     elements.projectSubtitle.textContent = activeSpace === "gonogo"
       ? "Dossiers de décision indépendants des chantiers."
-      : "Engagements Lean Construction, responsables et jalons.";
+      : activeSpace === "planning"
+        ? "Affectations terrain par technicien, date et chantier."
+        : "Engagements Lean Construction, responsables et jalons.";
     return;
   }
 
@@ -1358,10 +1420,9 @@ function renderTechEntryList(project) {
 function renderTechPlanning() {
   elements.techPlanningList.innerHTML = "";
   const technician = elements.techNameInput.value.trim() || getCurrentUserTaskOwner();
-  const tasks = getTodoWorkItems()
-    .filter((task) => task.technicians?.includes(technician))
-    .filter((task) => task.status !== "done")
-    .sort((a, b) => new Date(a.due) - new Date(b.due));
+  const tasks = technicianSchedule
+    .filter((item) => item.technicians.includes(technician))
+    .sort((a, b) => new Date(a.date) - new Date(b.date));
 
   if (!tasks.length) {
     elements.techPlanningList.innerHTML = `<p class="muted">Aucune intervention affectée à ${escapeHtml(technician)}.</p>`;
@@ -1370,8 +1431,6 @@ function renderTechPlanning() {
 
   groupTodoTasksByWeek(tasks).forEach(({ weekStart, weekEnd, tasks: weekTasks }) => {
     const section = document.createElement("section");
-    const doneCount = weekTasks.filter((task) => task.status === "done").length;
-    const constraintCount = weekTasks.filter((task) => task.status === "blocked" || task.constraint).length;
     section.className = "planning-week tech-planning-week";
     section.innerHTML = `
       <header class="planning-week-head">
@@ -1380,9 +1439,8 @@ function renderTechPlanning() {
           <strong>${formatShortDate(weekStart)} - ${formatShortDate(weekEnd)}</strong>
         </div>
         <div class="planning-week-stats">
-          <span>${weekTasks.length} tâches</span>
-          <span>${doneCount} faites</span>
-          <span>${constraintCount} contraintes</span>
+          <span>${weekTasks.length} intervention${weekTasks.length > 1 ? "s" : ""}</span>
+          <span>${escapeHtml(technician)}</span>
         </div>
       </header>
       <div class="planning-week-grid"></div>
@@ -1390,7 +1448,7 @@ function renderTechPlanning() {
 
     const grid = section.querySelector(".planning-week-grid");
     getWeekDays(weekStart).forEach((day) => {
-      const dayTasks = weekTasks.filter((task) => isSameDay(parseTodoDate(task.due), day));
+      const dayTasks = weekTasks.filter((task) => isSameDay(parseTodoDate(task.date), day));
       const column = document.createElement("div");
       column.className = `planning-day${isSameDay(day, new Date()) ? " is-today" : ""}`;
       column.innerHTML = `
@@ -1418,19 +1476,20 @@ function createTechPlanningTaskCard(task) {
   const item = document.createElement("button");
   const project = projects.find((item) => item.id === task.projectId);
   const location = project ? `${project.name} · ${project.city}` : "Hors chantier";
-  const dueKind = getTodoDueKind(task);
   item.type = "button";
-  item.className = `planning-item todo-${task.status} due-${dueKind.key}`;
+  item.className = "planning-item technician-planning-item";
   item.innerHTML = `
-    <span class="planning-chip">${escapeHtml(dueKind.label)}</span>
     <strong>${escapeHtml(task.title)}</strong>
     <small>${escapeHtml(location)}</small>
     <small>${escapeHtml(task.zone || "Zone à préciser")}</small>
-    <small>${escapeHtml(labelTodoStatus(task.status))}</small>
-    ${task.constraint ? `<em>${escapeHtml(task.constraint)}</em>` : ""}
+    ${task.note ? `<em>${escapeHtml(task.note)}</em>` : ""}
   `;
   item.addEventListener("click", () => {
-    elements.techDateInput.value = task.due || todayString();
+    if (task.projectId && projects.some((project) => project.id === task.projectId)) {
+      selectedId = task.projectId;
+      renderTechnicianView();
+    }
+    elements.techDateInput.value = task.date || todayString();
     elements.techTaskInput.value = task.title;
     elements.techTaskInput.focus();
   });
@@ -1722,7 +1781,6 @@ function calculateGoNoGoQuestionScore(goNoGo) {
 function renderTodoList() {
   renderTodoProjectOptions();
   renderTodoOwnerOptions();
-  renderTodoTechnicianOptions();
   const allTasks = getTodoWorkItems();
   renderTodoFilters(allTasks);
   const visibleTasks = filterTodoTasks(allTasks);
@@ -1794,7 +1852,6 @@ function createTodoTaskCard(task) {
       </select>
     </div>
     <span class="todo-owner">Pour ${escapeHtml(task.owner)}</span>
-    ${task.technicians?.length ? `<small>Techniciens : ${escapeHtml(formatTechnicianNames(task.technicians))}</small>` : ""}
     <small>${projectName ? `Chantier : ${escapeHtml(projectName)}` : "Hors chantier"}</small>
     <small>${formatDate(task.due)}${task.zone ? ` - ${escapeHtml(task.zone)}` : ""}</small>
     ${task.constraint ? `<p class="constraint-note">${escapeHtml(task.constraint)}</p>` : ""}
@@ -1920,7 +1977,6 @@ function selectTodoTaskForEdit(taskId) {
   elements.todoEditSelect.value = task.id;
   elements.todoTitleInput.value = task.title;
   elements.todoOwnerInput.value = task.owner;
-  renderTodoTechnicianOptions(task.technicians || []);
   elements.todoZoneInput.value = task.zone || "";
   elements.todoProjectSelect.value = task.projectId || "";
   elements.todoDueInput.value = task.due || todayString();
@@ -1944,7 +2000,6 @@ function clearTodoEditor() {
   elements.todoDueInput.value = todayString();
   elements.todoProjectSelect.disabled = false;
   elements.todoOwnerInput.value = getCurrentUserTaskOwner();
-  renderTodoTechnicianOptions([]);
   elements.todoZoneInput.disabled = false;
   elements.todoConstraintInput.disabled = false;
   elements.todoDeleteSelectedBtn.disabled = true;
@@ -2043,7 +2098,7 @@ function getTodoDueKind(task) {
 function groupTodoTasksByWeek(tasks) {
   const groups = new Map();
   tasks.forEach((task) => {
-    const weekStart = getWeekStart(parseTodoDate(task.due));
+    const weekStart = getWeekStart(parseTodoDate(task.date || task.due));
     const key = toDateKey(weekStart);
     if (!groups.has(key)) {
       groups.set(key, {
@@ -2106,7 +2161,6 @@ function getTodoWorkItems() {
       id: `project-action:${project.id}:${index}`,
       title: action.label,
       owner: action.owner || project.manager || "Responsable chantier",
-      technicians: Array.isArray(action.technicians) ? action.technicians : [],
       projectId: project.id,
       zone: project.city || "",
       milestone: "Action chantier",
@@ -2148,32 +2202,6 @@ function renderTodoOwnerOptions() {
   elements.todoOwnerInput.value = target;
 }
 
-function renderTodoTechnicianOptions(selectedTechnicians = getSelectedTodoTechnicians()) {
-  const technicians = getAssignableProfiles().filter((profile) => profile.role === "technician");
-  if (!technicians.length) {
-    elements.todoTechniciansInput.innerHTML = `<p class="muted">Aucun technicien disponible. Crée les comptes et attribue leur le rôle Technicien.</p>`;
-    return;
-  }
-
-  elements.todoTechniciansInput.innerHTML = technicians.map((profile) => {
-    const name = getTaskOwnerName(profile.email);
-    return `
-      <label class="todo-technician-option">
-        <input type="checkbox" value="${escapeAttribute(name)}"${selectedTechnicians.includes(name) ? " checked" : ""} />
-        <span>${escapeHtml(name)}</span>
-      </label>
-    `;
-  }).join("");
-}
-
-function getSelectedTodoTechnicians() {
-  return [...elements.todoTechniciansInput.querySelectorAll("input:checked")].map((input) => input.value);
-}
-
-function formatTechnicianNames(technicians) {
-  return technicians.join(", ");
-}
-
 function getAssignableProfiles() {
   const profiles = [...userProfiles];
   if (currentProfile && !profiles.some((profile) => profile.id === currentProfile.id)) profiles.push(currentProfile);
@@ -2190,6 +2218,166 @@ function getTaskOwnerName(email) {
   return localPart.split(".").filter(Boolean)
     .map((part) => part.charAt(0).toUpperCase() + part.slice(1).toLowerCase())
     .join(" ");
+}
+
+function renderTechnicianSchedule() {
+  renderTechnicianScheduleProjectOptions();
+  renderTechnicianScheduleAssignees();
+  renderTechnicianScheduleEditOptions();
+  elements.technicianScheduleList.innerHTML = "";
+
+  if (!technicianSchedule.length) {
+    elements.technicianScheduleList.innerHTML = `<p class="muted">Aucune intervention planifiée.</p>`;
+    return;
+  }
+
+  groupTodoTasksByWeek(technicianSchedule).forEach(({ weekStart, weekEnd, tasks }) => {
+    const section = document.createElement("section");
+    section.className = "planning-week";
+    section.innerHTML = `
+      <header class="planning-week-head">
+        <div>
+          <span>Semaine ${getIsoWeekNumber(weekStart)}</span>
+          <strong>${formatShortDate(weekStart)} - ${formatShortDate(weekEnd)}</strong>
+        </div>
+        <div class="planning-week-stats"><span>${tasks.length} intervention${tasks.length > 1 ? "s" : ""}</span></div>
+      </header>
+      <div class="planning-week-grid"></div>
+    `;
+    const grid = section.querySelector(".planning-week-grid");
+    getWeekDays(weekStart).forEach((day) => {
+      const dayItems = tasks.filter((item) => isSameDay(parseTodoDate(item.date), day));
+      const column = document.createElement("div");
+      column.className = `planning-day${isSameDay(day, new Date()) ? " is-today" : ""}`;
+      column.innerHTML = `<div class="planning-day-head"><strong>${formatWeekday(day)}</strong><span>${formatShortDate(day)}</span></div><div class="planning-day-tasks"></div>`;
+      const target = column.querySelector(".planning-day-tasks");
+      if (!dayItems.length) {
+        target.innerHTML = `<p class="muted">Libre</p>`;
+      } else {
+        dayItems.forEach((item) => target.append(createTechnicianScheduleCard(item)));
+      }
+      grid.append(column);
+    });
+    elements.technicianScheduleList.append(section);
+  });
+}
+
+function createTechnicianScheduleCard(item) {
+  const project = projects.find((project) => project.id === item.projectId);
+  const card = document.createElement("button");
+  card.type = "button";
+  card.className = "planning-item technician-planning-item";
+  card.innerHTML = `
+    <strong>${escapeHtml(item.title)}</strong>
+    <small>${escapeHtml(project ? `${project.name} · ${project.city}` : "Hors chantier")}</small>
+    <small>${escapeHtml(item.zone || "Lieu à préciser")}</small>
+    <small>Techniciens : ${escapeHtml(item.technicians.join(", ") || "À affecter")}</small>
+    ${item.note ? `<em>${escapeHtml(item.note)}</em>` : ""}
+  `;
+  card.addEventListener("click", () => selectTechnicianScheduleItem(item.id));
+  return card;
+}
+
+function renderTechnicianScheduleProjectOptions() {
+  const selected = elements.technicianScheduleProjectInput.value;
+  elements.technicianScheduleProjectInput.innerHTML = todoProjectOptions(selected);
+  elements.technicianScheduleProjectInput.value = projects.some((project) => project.id === selected) ? selected : "";
+}
+
+function renderTechnicianScheduleAssignees(selected = getSelectedTechnicianScheduleAssignees()) {
+  const technicians = getAssignableProfiles().filter((profile) => profile.role === "technician");
+  if (!technicians.length) {
+    elements.technicianScheduleAssignees.innerHTML = `<p class="muted">Aucun technicien disponible. Attribue d'abord le rôle Technicien aux comptes concernés.</p>`;
+    return;
+  }
+  elements.technicianScheduleAssignees.innerHTML = technicians.map((profile) => {
+    const name = getTaskOwnerName(profile.email);
+    return `<label class="technician-assignee-option"><input type="checkbox" value="${escapeAttribute(name)}"${selected.includes(name) ? " checked" : ""} /><span>${escapeHtml(name)}</span></label>`;
+  }).join("");
+}
+
+function getSelectedTechnicianScheduleAssignees() {
+  return [...elements.technicianScheduleAssignees.querySelectorAll("input:checked")].map((input) => input.value);
+}
+
+function renderTechnicianScheduleEditOptions() {
+  elements.technicianScheduleEditSelect.innerHTML = `
+    <option value="">Nouvelle intervention</option>
+    ${technicianSchedule.slice().sort((left, right) => new Date(left.date) - new Date(right.date)).map((item) => `<option value="${escapeAttribute(item.id)}">${escapeHtml(item.date)} - ${escapeHtml(item.title)}</option>`).join("")}
+  `;
+  elements.technicianScheduleEditSelect.value = technicianSchedule.some((item) => item.id === selectedTechnicianScheduleId) ? selectedTechnicianScheduleId : "";
+  elements.technicianScheduleDeleteBtn.disabled = !elements.technicianScheduleEditSelect.value;
+}
+
+function selectTechnicianScheduleItem(id) {
+  const item = technicianSchedule.find((entry) => entry.id === id);
+  if (!item) {
+    clearTechnicianScheduleEditor();
+    return;
+  }
+  selectedTechnicianScheduleId = item.id;
+  elements.technicianScheduleTitleInput.value = item.title;
+  elements.technicianScheduleProjectInput.value = item.projectId;
+  elements.technicianScheduleZoneInput.value = item.zone;
+  elements.technicianScheduleDateInput.value = item.date;
+  elements.technicianScheduleNoteInput.value = item.note;
+  renderTechnicianScheduleAssignees(item.technicians);
+  renderTechnicianScheduleEditOptions();
+  elements.technicianScheduleSubmitBtn.textContent = "Modifier";
+}
+
+function clearTechnicianScheduleEditor() {
+  selectedTechnicianScheduleId = "";
+  elements.technicianScheduleForm.reset();
+  elements.technicianScheduleDateInput.value = todayString();
+  renderTechnicianScheduleProjectOptions();
+  renderTechnicianScheduleAssignees([]);
+  renderTechnicianScheduleEditOptions();
+  elements.technicianScheduleSubmitBtn.textContent = "Enregistrer";
+}
+
+function saveTechnicianScheduleItem(event) {
+  event.preventDefault();
+  if (!requireProjectManagerAction()) return;
+  if (!elements.technicianScheduleForm.reportValidity()) return;
+
+  const values = {
+    title: elements.technicianScheduleTitleInput.value.trim(),
+    projectId: elements.technicianScheduleProjectInput.value,
+    zone: elements.technicianScheduleZoneInput.value.trim(),
+    date: elements.technicianScheduleDateInput.value,
+    technicians: getSelectedTechnicianScheduleAssignees(),
+    note: elements.technicianScheduleNoteInput.value.trim()
+  };
+  if (!values.technicians.length) {
+    alert("Affecte au moins un technicien à cette intervention.");
+    return;
+  }
+
+  if (selectedTechnicianScheduleId) {
+    const item = technicianSchedule.find((entry) => entry.id === selectedTechnicianScheduleId);
+    if (!item) return;
+    Object.assign(item, values);
+  } else {
+    const item = normalizeTechnicianScheduleItem({ id: crypto.randomUUID(), ...values });
+    technicianSchedule.push(item);
+    selectedTechnicianScheduleId = item.id;
+  }
+  saveTechnicianSchedule();
+  renderTechnicianSchedule();
+  selectTechnicianScheduleItem(selectedTechnicianScheduleId);
+  renderTechPlanning();
+}
+
+function deleteSelectedTechnicianScheduleItem() {
+  if (!requireProjectManagerAction() || !selectedTechnicianScheduleId) return;
+  const item = technicianSchedule.find((entry) => entry.id === selectedTechnicianScheduleId);
+  if (!item || !confirm(`Supprimer l'intervention "${item.title}" ?`)) return;
+  technicianSchedule = technicianSchedule.filter((entry) => entry.id !== item.id);
+  saveTechnicianSchedule();
+  clearTechnicianScheduleEditor();
+  renderTechnicianSchedule();
+  renderTechPlanning();
 }
 
 function todoProjectOptions(selected) {
@@ -2514,7 +2702,6 @@ function addTodoTask(event) {
     id: crypto.randomUUID(),
     title: elements.todoTitleInput.value.trim(),
     owner: elements.todoOwnerInput.value.trim(),
-    technicians: getSelectedTodoTechnicians(),
     projectId: elements.todoProjectSelect.value,
     zone: elements.todoZoneInput.value.trim(),
     milestone: "",
@@ -2544,7 +2731,6 @@ function updateTodoTaskFromEditor(taskId) {
 
     action.label = title;
     action.owner = owner;
-    action.technicians = getSelectedTodoTechnicians();
     action.due = elements.todoDueInput.value;
     action.done = elements.todoStatusInput.value === "done";
 
@@ -2560,7 +2746,6 @@ function updateTodoTaskFromEditor(taskId) {
 
   task.title = title;
   task.owner = owner;
-  task.technicians = getSelectedTodoTechnicians();
   task.projectId = elements.todoProjectSelect.value;
   task.zone = elements.todoZoneInput.value.trim();
   task.milestone = "";

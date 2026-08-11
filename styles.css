@@ -195,7 +195,7 @@ small {
 
 .space-switch {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 6px;
   padding: 6px;
   border: 1px solid var(--line);
@@ -227,23 +227,34 @@ body[data-active-space="todolist"] .sidebar .todo-view-tabs {
 
 body[data-active-space="gonogo"] .search-box,
 body[data-active-space="todolist"] .search-box,
+body[data-active-space="planning"] .search-box,
 body[data-active-space="gonogo"] .section-tabs,
 body[data-active-space="todolist"] .section-tabs,
+body[data-active-space="planning"] .section-tabs,
 body[data-active-space="gonogo"] #projectList,
 body[data-active-space="todolist"] #projectList,
+body[data-active-space="planning"] #projectList,
 body[data-active-space="gonogo"] #techModeBtn,
 body[data-active-space="todolist"] #techModeBtn,
+body[data-active-space="planning"] #techModeBtn,
 body[data-active-space="gonogo"] #exportBtn,
 body[data-active-space="todolist"] #exportBtn,
+body[data-active-space="planning"] #exportBtn,
 body[data-active-space="gonogo"] #resetBtn,
 body[data-active-space="todolist"] #resetBtn,
+body[data-active-space="planning"] #resetBtn,
 body[data-active-space="gonogo"] #deleteProjectBtn,
 body[data-active-space="todolist"] #deleteProjectBtn,
+body[data-active-space="planning"] #deleteProjectBtn,
 body[data-active-space="gonogo"] #newProjectBtn {
   display: none;
 }
 
 body[data-active-space="todolist"] #newProjectBtn {
+  display: none;
+}
+
+body[data-active-space="planning"] #newProjectBtn {
   display: none;
 }
 
@@ -502,6 +513,7 @@ body[data-active-tab="heures"] .content-grid {
 
 body[data-active-tab="gonogo"] .content-grid,
 body[data-active-tab="todolist"] .content-grid,
+body[data-active-tab="planning"] .content-grid,
 body[data-active-tab="parametres"] .content-grid {
   grid-template-columns: 1fr;
 }
@@ -1187,21 +1199,21 @@ td small {
   grid-column: span 2;
 }
 
-.todo-technicians-field {
+.technician-assignment-field {
   min-width: 0;
   margin: 0;
   padding: 0;
   border: 0;
 }
 
-.todo-technicians-field legend {
+.technician-assignment-field legend {
   margin-bottom: 8px;
   color: var(--muted);
   font-size: 0.84rem;
   font-weight: 700;
 }
 
-.todo-technicians-input {
+.technician-assignees {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
@@ -1211,7 +1223,7 @@ td small {
   background: var(--panel-soft);
 }
 
-.todo-technician-option {
+.technician-assignee-option {
   display: inline-flex !important;
   align-items: center;
   gap: 6px;
@@ -1223,7 +1235,7 @@ td small {
   cursor: pointer;
 }
 
-.todo-technician-option input {
+.technician-assignee-option input {
   width: 16px;
   height: 16px;
   margin: 0;
