@@ -166,6 +166,7 @@ const settingsKey = "gestion-affaires-cvc-settings-v1";
 const goNoGoStorageKey = "gestion-affaires-cvc-gonogo-v2";
 const todoStorageKey = "gestion-affaires-cvc-todolist-v1";
 const technicianScheduleStorageKey = "gestion-affaires-cvc-technician-schedule-v1";
+const technicianDirectoryStorageKey = "gestion-affaires-cvc-technician-directory-v1";
 const agencyPresetStorageKey = "gestion-affaires-cvc-agency-presets-v1";
 const remoteStateKeys = {
   projects: storageKey,
@@ -173,6 +174,7 @@ const remoteStateKeys = {
   goNoGoCases: goNoGoStorageKey,
   todoTasks: todoStorageKey,
   technicianSchedule: technicianScheduleStorageKey,
+  technicianDirectory: technicianDirectoryStorageKey,
   agencyPresets: agencyPresetStorageKey
 };
 const remoteStore = createRemoteStore();
@@ -183,6 +185,7 @@ let settings = loadSettings();
 let goNoGoCases = repairStoredText(loadGoNoGoCases());
 let todoTasks = [];
 let technicianSchedule = [];
+let manualTechnicians = [];
 let selectedTechnicianScheduleId = "";
 let agencyPresets = [];
 let selectedTodoTaskId = "";
@@ -350,6 +353,7 @@ const seedTodoTasks = [
 
 todoTasks = repairStoredText(loadTodoTasks());
 technicianSchedule = repairStoredText(loadTechnicianSchedule());
+manualTechnicians = repairStoredText(loadManualTechnicians());
 agencyPresets = repairStoredText(loadAgencyPresets());
 if (repairedStoredText) {
   saveProjects();
@@ -504,6 +508,9 @@ const elements = {
   technicianScheduleDeleteBtn: document.querySelector("#technicianScheduleDeleteBtn"),
   technicianScheduleSubmitBtn: document.querySelector("#technicianScheduleSubmitBtn"),
   technicianScheduleList: document.querySelector("#technicianScheduleList"),
+  manualTechnicianInput: document.querySelector("#manualTechnicianInput"),
+  addManualTechnicianBtn: document.querySelector("#addManualTechnicianBtn"),
+  manualTechnicianList: document.querySelector("#manualTechnicianList"),
   settingsGearBtn: document.querySelector("#settingsGearBtn"),
   settingsPanel: document.querySelector("#settingsPanel"),
   accessManagementPanel: document.querySelector("#accessManagementPanel"),
@@ -580,6 +587,11 @@ elements.technicianScheduleForm.addEventListener("submit", saveTechnicianSchedul
 elements.technicianScheduleEditSelect.addEventListener("change", () => selectTechnicianScheduleItem(elements.technicianScheduleEditSelect.value));
 elements.technicianScheduleNewBtn.addEventListener("click", clearTechnicianScheduleEditor);
 elements.technicianScheduleDeleteBtn.addEventListener("click", deleteSelectedTechnicianScheduleItem);
+elements.addManualTechnicianBtn.addEventListener("click", addManualTechnician);
+elements.manualTechnicianList.addEventListener("click", (event) => {
+  const button = event.target.closest("[data-remove-manual-technician]");
+  if (button) removeManualTechnician(button.dataset.removeManualTechnician);
+});
 elements.settingsGearBtn.addEventListener("click", toggleSettingsPanel);
 elements.darkModeToggle.addEventListener("change", () => updateSetting("darkMode", elements.darkModeToggle.checked));
 elements.compactModeToggle.addEventListener("change", () => updateSetting("compactMode", elements.compactModeToggle.checked));
@@ -672,6 +684,17 @@ function loadTechnicianSchedule() {
   try {
     const parsed = JSON.parse(raw);
     return Array.isArray(parsed) ? parsed.map(normalizeTechnicianScheduleItem) : [];
+  } catch {
+    return [];
+  }
+}
+
+function loadManualTechnicians() {
+  const raw = localStorage.getItem(technicianDirectoryStorageKey);
+  if (!raw) return [];
+  try {
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed.map((name) => String(name).trim()).filter(Boolean) : [];
   } catch {
     return [];
   }
@@ -816,6 +839,10 @@ function saveTodoTasks() {
 
 function saveTechnicianSchedule() {
   saveAppState(technicianScheduleStorageKey, technicianSchedule);
+}
+
+function saveManualTechnicians() {
+  saveAppState(technicianDirectoryStorageKey, manualTechnicians);
 }
 
 function saveAgencyPresets() {
@@ -1042,12 +1069,13 @@ async function syncFromRemote() {
   if (!remoteStore.enabled) return;
 
   try {
-    const [remoteProjects, remoteSettings, remoteGoNoGoCases, remoteTodoTasks, remoteTechnicianSchedule, remoteAgencyPresets] = await Promise.all([
+    const [remoteProjects, remoteSettings, remoteGoNoGoCases, remoteTodoTasks, remoteTechnicianSchedule, remoteManualTechnicians, remoteAgencyPresets] = await Promise.all([
       loadRemoteState(remoteStateKeys.projects),
       loadRemoteState(remoteStateKeys.settings),
       loadRemoteState(remoteStateKeys.goNoGoCases),
       loadRemoteState(remoteStateKeys.todoTasks),
       loadRemoteState(remoteStateKeys.technicianSchedule),
+      loadRemoteState(remoteStateKeys.technicianDirectory),
       loadRemoteState(remoteStateKeys.agencyPresets)
     ]);
 
@@ -1087,6 +1115,13 @@ async function syncFromRemote() {
       localStorage.setItem(technicianScheduleStorageKey, JSON.stringify(technicianSchedule));
     } else {
       saveTechnicianSchedule();
+    }
+
+    if (Array.isArray(remoteManualTechnicians)) {
+      manualTechnicians = remoteManualTechnicians.map((name) => String(name).trim()).filter(Boolean);
+      localStorage.setItem(technicianDirectoryStorageKey, JSON.stringify(manualTechnicians));
+    } else {
+      saveManualTechnicians();
     }
 
     if (Array.isArray(remoteAgencyPresets)) {
@@ -2221,6 +2256,7 @@ function getTaskOwnerName(email) {
 }
 
 function renderTechnicianSchedule() {
+  renderManualTechnicianDirectory();
   renderTechnicianScheduleProjectOptions();
   renderTechnicianScheduleAssignees();
   renderTechnicianScheduleEditOptions();
@@ -2285,15 +2321,49 @@ function renderTechnicianScheduleProjectOptions() {
 }
 
 function renderTechnicianScheduleAssignees(selected = getSelectedTechnicianScheduleAssignees()) {
-  const technicians = getAssignableProfiles().filter((profile) => profile.role === "technician");
+  const technicians = getAvailableTechnicianNames();
   if (!technicians.length) {
     elements.technicianScheduleAssignees.innerHTML = `<p class="muted">Aucun technicien disponible. Attribue d'abord le rôle Technicien aux comptes concernés.</p>`;
     return;
   }
-  elements.technicianScheduleAssignees.innerHTML = technicians.map((profile) => {
-    const name = getTaskOwnerName(profile.email);
+  elements.technicianScheduleAssignees.innerHTML = technicians.map((name) => {
     return `<label class="technician-assignee-option"><input type="checkbox" value="${escapeAttribute(name)}"${selected.includes(name) ? " checked" : ""} /><span>${escapeHtml(name)}</span></label>`;
   }).join("");
+}
+
+function getAvailableTechnicianNames() {
+  const accountTechnicians = getAssignableProfiles()
+    .filter((profile) => profile.role === "technician")
+    .map((profile) => getTaskOwnerName(profile.email));
+  return [...new Set([...accountTechnicians, ...manualTechnicians])].sort((left, right) => left.localeCompare(right, "fr"));
+}
+
+function renderManualTechnicianDirectory() {
+  elements.manualTechnicianList.innerHTML = manualTechnicians.length
+    ? manualTechnicians.map((name) => `<span class="manual-technician-chip">${escapeHtml(name)}<button type="button" data-remove-manual-technician="${escapeAttribute(name)}" title="Retirer ${escapeAttribute(name)}" aria-label="Retirer ${escapeAttribute(name)}">×</button></span>`).join("")
+    : `<span class="muted">Aucun technicien ajouté manuellement.</span>`;
+}
+
+function addManualTechnician() {
+  if (!requireProjectManagerAction()) return;
+  const name = elements.manualTechnicianInput.value.trim().replace(/\s+/g, " ");
+  if (!name) return;
+  if (getAvailableTechnicianNames().some((item) => item.toLowerCase() === name.toLowerCase())) {
+    alert("Ce technicien est déjà disponible dans le planning.");
+    return;
+  }
+  manualTechnicians.push(name);
+  elements.manualTechnicianInput.value = "";
+  saveManualTechnicians();
+  renderTechnicianSchedule();
+}
+
+function removeManualTechnician(name) {
+  if (!requireProjectManagerAction()) return;
+  if (!confirm(`Retirer ${name} du répertoire manuel ? Les affectations existantes sont conservées.`)) return;
+  manualTechnicians = manualTechnicians.filter((item) => item !== name);
+  saveManualTechnicians();
+  renderTechnicianSchedule();
 }
 
 function getSelectedTechnicianScheduleAssignees() {

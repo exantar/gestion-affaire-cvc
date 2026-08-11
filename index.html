@@ -658,6 +658,14 @@
                   <p class="muted">Affecte les interventions par date, chantier, lieu et technicien.</p>
                 </div>
               </div>
+              <div class="technician-directory" aria-label="Répertoire techniciens">
+                <label>
+                  Ajouter un technicien
+                  <input id="manualTechnicianInput" type="text" placeholder="Prénom Nom" />
+                </label>
+                <button id="addManualTechnicianBtn" class="secondary-button" type="button">Ajouter</button>
+                <div id="manualTechnicianList" class="technician-directory-list"></div>
+              </div>
               <form id="technicianScheduleForm" class="todo-form">
                 <label class="todo-form-wide">
                   Intervention à modifier
