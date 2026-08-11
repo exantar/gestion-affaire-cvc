@@ -1374,6 +1374,18 @@ td small {
   min-height: 32px;
 }
 
+.project-zone-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.project-zone-actions .danger-button {
+  min-height: 32px;
+  padding: 0 8px;
+  font-size: 0.76rem;
+}
+
 .panel-heading-actions {
   display: flex;
   align-items: center;

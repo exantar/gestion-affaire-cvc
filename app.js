@@ -1799,10 +1799,11 @@ function renderProjectOrders(project) {
     const section = document.createElement("section");
     section.className = "project-order-zone";
     section.innerHTML = `
-      <header><div><h3>${escapeHtml(zone)}</h3><span>${zoneOrders.length} commande${zoneOrders.length > 1 ? "s" : ""}</span></div><button class="icon-button small" type="button" title="Ajouter un élément dans cette zone" aria-label="Ajouter un élément dans cette zone"><span aria-hidden="true">+</span></button></header>
+      <header><div><h3>${escapeHtml(zone)}</h3><span>${zoneOrders.length} commande${zoneOrders.length > 1 ? "s" : ""}</span></div><div class="project-zone-actions"><button class="icon-button small" type="button" title="Ajouter un élément dans cette zone" aria-label="Ajouter un élément dans cette zone"><span aria-hidden="true">+</span></button><button class="secondary-button danger-button project-zone-delete" type="button">Supprimer</button></div></header>
       <div class="table-wrap"><table class="ops-table project-orders-table"><thead><tr><th>Désignation</th><th>Qté</th><th>Fournisseur</th><th>Référence</th><th>Échéance</th><th>Statut</th><th></th></tr></thead><tbody></tbody></table></div>
     `;
-    section.querySelector("header button").addEventListener("click", () => openNewProjectOrderEditor(zone));
+    section.querySelector(".icon-button").addEventListener("click", () => openNewProjectOrderEditor(zone));
+    section.querySelector(".project-zone-delete").addEventListener("click", () => deleteProjectOrderZone(zone));
     const body = section.querySelector("tbody");
     zoneOrders.sort((left, right) => new Date(left.date) - new Date(right.date)).forEach((order) => {
       const row = document.createElement("tr");
@@ -1858,6 +1859,21 @@ function addProjectOrderZone() {
   saveProjects();
   renderDetail();
   openNewProjectOrderEditor(zone);
+}
+
+function deleteProjectOrderZone(zone) {
+  if (!requireProjectManagerAction()) return;
+  const project = getSelectedProject();
+  const count = (project.orders || []).filter((order) => order.zone === zone).length;
+  const message = count
+    ? `Supprimer la zone "${zone}" et ses ${count} commande${count > 1 ? "s" : ""} ?`
+    : `Supprimer la zone "${zone}" ?`;
+  if (!confirm(message)) return;
+  project.orderZones = (project.orderZones || []).filter((item) => item !== zone);
+  project.orders = (project.orders || []).filter((order) => order.zone !== zone);
+  if (selectedProjectOrderId && !project.orders.some((order) => order.id === selectedProjectOrderId)) closeProjectOrderEditor();
+  saveProjects();
+  renderDetail();
 }
 
 function closeProjectOrderEditor() {
