@@ -507,7 +507,8 @@ h2 {
 
 body[data-active-tab="achats"] .content-grid,
 body[data-active-tab="fae"] .content-grid,
-body[data-active-tab="heures"] .content-grid {
+body[data-active-tab="heures"] .content-grid,
+body[data-active-tab="livraisons"] .content-grid {
   grid-template-columns: 1fr;
 }
 
@@ -1288,6 +1289,51 @@ td small {
 .schedule-readiness-dot.is-missing {
   background: var(--accent);
   box-shadow: 0 0 0 3px rgba(238, 50, 36, 0.12);
+}
+
+.project-delivery-list {
+  display: grid;
+  gap: 10px;
+}
+
+.project-delivery-item {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: start;
+  gap: 10px;
+  width: 100%;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-left: 5px solid var(--accent-yellow);
+  border-radius: 4px;
+  background: var(--panel-soft);
+  color: var(--ink);
+  text-align: left;
+}
+
+.project-delivery-item:hover {
+  border-color: var(--accent);
+  border-left-color: var(--accent-yellow);
+}
+
+.project-delivery-item strong,
+.project-delivery-item span,
+.project-delivery-item small {
+  display: block;
+}
+
+.project-delivery-item strong {
+  margin-bottom: 4px;
+}
+
+.project-delivery-item span,
+.project-delivery-item small {
+  color: var(--muted);
+  font-size: 0.82rem;
+}
+
+.project-delivery-item small {
+  margin-top: 6px;
 }
 
 .todo-form-project {

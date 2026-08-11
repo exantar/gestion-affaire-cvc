@@ -192,7 +192,7 @@ let selectedTodoTaskId = "";
 let selectedGoNoGoId = goNoGoCases[0]?.id;
 let selectedId = projects[0]?.id;
 let activeSpace = "chantiers";
-let activeTab = "synthese";
+let activeTab = "livraisons";
 let activeTodoView = "tasks";
 let goNoGoTemplate = null;
 let currentUser = null;
@@ -398,6 +398,8 @@ const elements = {
   faeRows: document.querySelector("#faeRows"),
   hourRows: document.querySelector("#hourRows"),
   hourThemes: document.querySelector("#hourThemes"),
+  addDeliveryForProjectBtn: document.querySelector("#addDeliveryForProjectBtn"),
+  projectDeliveryList: document.querySelector("#projectDeliveryList"),
   actionList: document.querySelector("#actionList"),
   milestoneList: document.querySelector("#milestoneList"),
   newProjectBtn: document.querySelector("#newProjectBtn"),
@@ -554,6 +556,7 @@ elements.addLotBtn.addEventListener("click", addLot);
 elements.addPurchaseBtn.addEventListener("click", addPurchase);
 elements.addFaeBtn.addEventListener("click", addFae);
 elements.addHourBtn.addEventListener("click", addHourLine);
+elements.addDeliveryForProjectBtn.addEventListener("click", openDeliveryCreationForSelectedProject);
 elements.addActionBtn.addEventListener("click", openTodoTaskCreationForSelectedProject);
 elements.addGngCaseBtn.addEventListener("click", addGoNoGoCase);
 elements.exportBtn.addEventListener("click", exportData);
@@ -1303,6 +1306,7 @@ function renderDetail() {
   renderPurchases(project);
   renderFaes(project);
   renderHours(project);
+  renderProjectDeliveries(project);
   renderSettings();
   renderAccessManagement();
   renderActions(project);
@@ -1323,7 +1327,8 @@ function renderEmptyProjectState() {
     elements.milestoneList,
     elements.techEntryList,
     elements.purchaseThemes,
-    elements.hourThemes
+    elements.hourThemes,
+    elements.projectDeliveryList
   ].forEach((element) => {
     if (element) element.innerHTML = "";
   });
@@ -1354,7 +1359,7 @@ function setActiveSpace(space) {
     return;
   }
 
-  if (["gonogo", "todolist", "planning"].includes(activeTab)) activeTab = "synthese";
+  if (["gonogo", "todolist", "planning"].includes(activeTab)) activeTab = "livraisons";
   setTechnicianMode(false);
   renderDetail();
   applyActiveTab();
@@ -1679,6 +1684,49 @@ function renderHours(project) {
     bindOperationalInputs(row, project);
     elements.hourRows.append(row);
   });
+}
+
+function renderProjectDeliveries(project) {
+  const deliveries = technicianSchedule
+    .filter((item) => item.kind === "delivery" && item.projectId === project.id)
+    .slice()
+    .sort((left, right) => new Date(left.date) - new Date(right.date));
+
+  if (!deliveries.length) {
+    elements.projectDeliveryList.innerHTML = `<p class="muted">Aucune livraison prévue pour ce chantier.</p>`;
+    return;
+  }
+
+  elements.projectDeliveryList.innerHTML = "";
+  deliveries.forEach((delivery) => {
+    const item = document.createElement("button");
+    item.type = "button";
+    item.className = "project-delivery-item";
+    item.innerHTML = `
+      <span class="schedule-readiness-dot${delivery.ready ? " is-ready" : " is-missing"}" title="${delivery.ready ? "Éléments disponibles" : "Éléments manquants"}"></span>
+      <div>
+        <strong>${escapeHtml(delivery.title)}</strong>
+        <span>${formatDate(delivery.date)}${delivery.zone ? ` · ${escapeHtml(delivery.zone)}` : ""}</span>
+        ${delivery.note ? `<small>${escapeHtml(delivery.note)}</small>` : ""}
+      </div>
+    `;
+    item.addEventListener("click", () => {
+      setActiveSpace("planning");
+      selectTechnicianScheduleItem(delivery.id);
+    });
+    elements.projectDeliveryList.append(item);
+  });
+}
+
+function openDeliveryCreationForSelectedProject() {
+  if (!requireProjectManagerAction()) return;
+  const project = getSelectedProject();
+  if (!project) return;
+  setActiveSpace("planning");
+  openNewTechnicianScheduleEditor();
+  elements.technicianScheduleKindInput.value = "delivery";
+  elements.technicianScheduleProjectInput.value = project.id;
+  elements.technicianScheduleTitleInput.focus();
 }
 
 function renderGoNoGo() {

@@ -59,10 +59,7 @@
         </label>
 
         <div class="section-tabs" aria-label="Onglets métier">
-          <button class="section-tab is-active" data-tab="synthese" type="button">Synthèse</button>
-          <button class="section-tab" data-tab="achats" type="button">Achats</button>
-          <button class="section-tab" data-tab="fae" type="button">FAE</button>
-          <button class="section-tab" data-tab="heures" type="button">Heures</button>
+          <button class="section-tab is-active" data-tab="livraisons" type="button">Livraisons</button>
           <button class="section-tab" data-tab="technicien" type="button">Technicien</button>
         </div>
 
@@ -396,6 +393,18 @@
                   <tbody id="hourRows"></tbody>
                 </table>
               </div>
+            </section>
+
+            <section class="panel deliveries-panel" data-panel="livraisons">
+              <div class="panel-heading">
+                <div>
+                  <p class="eyebrow">Chantier</p>
+                  <h2>Livraisons prévues</h2>
+                  <p class="muted">Réceptions, approvisionnements et informations de livraison du chantier.</p>
+                </div>
+                <button id="addDeliveryForProjectBtn" class="icon-button small" type="button" title="Planifier une livraison" aria-label="Planifier une livraison"><span aria-hidden="true">+</span></button>
+              </div>
+              <div id="projectDeliveryList" class="project-delivery-list"></div>
             </section>
 
             <section class="panel" data-panel="gonogo">
