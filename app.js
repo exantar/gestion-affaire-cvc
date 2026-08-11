@@ -2345,7 +2345,7 @@ function createTechnicianScheduleCard(item) {
   card.innerHTML = `
     <strong>${escapeHtml(item.title)}</strong>
     ${item.kind === "delivery" ? `<small>${escapeHtml(project ? `${project.name} · ${project.city}` : "Hors chantier")}</small>` : `<small>${escapeHtml(item.technicians.join(", ") || "À affecter")}</small>`}
-    ${item.note ? `<em>${escapeHtml(item.note)}</em>` : ""}
+    ${item.note ? `<em>Commentaire : ${escapeHtml(item.note)}</em>` : ""}
   `;
   card.addEventListener("click", () => selectTechnicianScheduleItem(item.id));
   return card;
