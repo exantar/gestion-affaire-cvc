@@ -1350,6 +1350,11 @@ td small {
   border-bottom: 1px solid var(--line);
 }
 
+.project-order-zone header > div {
+  display: grid;
+  gap: 2px;
+}
+
 .project-order-zone h3,
 .project-order-zone header span {
   margin: 0;
@@ -1362,6 +1367,17 @@ td small {
 .project-order-zone header span {
   color: var(--muted);
   font-size: 0.8rem;
+}
+
+.project-order-zone header .icon-button {
+  width: 32px;
+  min-height: 32px;
+}
+
+.panel-heading-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .project-orders-table td {
