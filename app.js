@@ -508,9 +508,7 @@ const elements = {
   technicianScheduleDeleteBtn: document.querySelector("#technicianScheduleDeleteBtn"),
   technicianScheduleSubmitBtn: document.querySelector("#technicianScheduleSubmitBtn"),
   technicianScheduleList: document.querySelector("#technicianScheduleList"),
-  manualTechnicianInput: document.querySelector("#manualTechnicianInput"),
   addManualTechnicianBtn: document.querySelector("#addManualTechnicianBtn"),
-  manualTechnicianList: document.querySelector("#manualTechnicianList"),
   settingsGearBtn: document.querySelector("#settingsGearBtn"),
   settingsPanel: document.querySelector("#settingsPanel"),
   accessManagementPanel: document.querySelector("#accessManagementPanel"),
@@ -588,10 +586,6 @@ elements.technicianScheduleEditSelect.addEventListener("change", () => selectTec
 elements.technicianScheduleNewBtn.addEventListener("click", clearTechnicianScheduleEditor);
 elements.technicianScheduleDeleteBtn.addEventListener("click", deleteSelectedTechnicianScheduleItem);
 elements.addManualTechnicianBtn.addEventListener("click", addManualTechnician);
-elements.manualTechnicianList.addEventListener("click", (event) => {
-  const button = event.target.closest("[data-remove-manual-technician]");
-  if (button) removeManualTechnician(button.dataset.removeManualTechnician);
-});
 elements.settingsGearBtn.addEventListener("click", toggleSettingsPanel);
 elements.darkModeToggle.addEventListener("change", () => updateSetting("darkMode", elements.darkModeToggle.checked));
 elements.compactModeToggle.addEventListener("change", () => updateSetting("compactMode", elements.compactModeToggle.checked));
@@ -2256,7 +2250,6 @@ function getTaskOwnerName(email) {
 }
 
 function renderTechnicianSchedule() {
-  renderManualTechnicianDirectory();
   renderTechnicianScheduleProjectOptions();
   renderTechnicianScheduleAssignees();
   renderTechnicianScheduleEditOptions();
@@ -2338,30 +2331,15 @@ function getAvailableTechnicianNames() {
   return [...new Set([...accountTechnicians, ...manualTechnicians])].sort((left, right) => left.localeCompare(right, "fr"));
 }
 
-function renderManualTechnicianDirectory() {
-  elements.manualTechnicianList.innerHTML = manualTechnicians.length
-    ? manualTechnicians.map((name) => `<span class="manual-technician-chip">${escapeHtml(name)}<button type="button" data-remove-manual-technician="${escapeAttribute(name)}" title="Retirer ${escapeAttribute(name)}" aria-label="Retirer ${escapeAttribute(name)}">×</button></span>`).join("")
-    : `<span class="muted">Aucun technicien ajouté manuellement.</span>`;
-}
-
 function addManualTechnician() {
   if (!requireProjectManagerAction()) return;
-  const name = elements.manualTechnicianInput.value.trim().replace(/\s+/g, " ");
+  const name = (prompt("Nom du technicien à ajouter") || "").trim().replace(/\s+/g, " ");
   if (!name) return;
   if (getAvailableTechnicianNames().some((item) => item.toLowerCase() === name.toLowerCase())) {
     alert("Ce technicien est déjà disponible dans le planning.");
     return;
   }
   manualTechnicians.push(name);
-  elements.manualTechnicianInput.value = "";
-  saveManualTechnicians();
-  renderTechnicianSchedule();
-}
-
-function removeManualTechnician(name) {
-  if (!requireProjectManagerAction()) return;
-  if (!confirm(`Retirer ${name} du répertoire manuel ? Les affectations existantes sont conservées.`)) return;
-  manualTechnicians = manualTechnicians.filter((item) => item !== name);
   saveManualTechnicians();
   renderTechnicianSchedule();
 }
