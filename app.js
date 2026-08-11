@@ -404,6 +404,7 @@ const elements = {
   projectDeliveryList: document.querySelector("#projectDeliveryList"),
   addProjectOrderBtn: document.querySelector("#addProjectOrderBtn"),
   addOrderZoneBtn: document.querySelector("#addOrderZoneBtn"),
+  exportProjectOrdersBtn: document.querySelector("#exportProjectOrdersBtn"),
   projectOrdersViewBtn: document.querySelector("#projectOrdersViewBtn"),
   projectDeliveriesViewBtn: document.querySelector("#projectDeliveriesViewBtn"),
   projectOrdersView: document.querySelector("#projectOrdersView"),
@@ -586,6 +587,7 @@ elements.addHourBtn.addEventListener("click", addHourLine);
 elements.addDeliveryForProjectBtn.addEventListener("click", openDeliveryCreationForSelectedProject);
 elements.addProjectOrderBtn.addEventListener("click", openNewProjectOrderEditor);
 elements.addOrderZoneBtn.addEventListener("click", addProjectOrderZone);
+elements.exportProjectOrdersBtn.addEventListener("click", exportProjectOrdersExcel);
 elements.projectOrdersViewBtn.addEventListener("click", () => setDeliveryView("orders"));
 elements.projectDeliveriesViewBtn.addEventListener("click", () => setDeliveryView("deliveries"));
 elements.projectOrderForm.addEventListener("submit", saveProjectOrder);
@@ -3636,6 +3638,56 @@ function exportData() {
   link.download = "affaires-cvc.json";
   link.click();
   URL.revokeObjectURL(url);
+}
+
+function exportProjectOrdersExcel() {
+  const project = getSelectedProject();
+  if (!project) return;
+  const orders = (project.orders || []).slice().sort((left, right) => {
+    const byZone = String(left.zone).localeCompare(String(right.zone), "fr");
+    return byZone || new Date(left.date) - new Date(right.date);
+  });
+  const rows = [
+    ["Commandes chantier", project.name],
+    ["Client", project.client],
+    ["Ville", project.city],
+    [],
+    ["Zone", "Désignation", "Quantité", "Unité", "Fournisseur", "Référence", "Date prévue", "Statut", "Détail / commentaire"],
+    ...orders.map((order) => [order.zone, order.item, order.quantity, order.unit, order.supplier || "", order.reference || "", order.date, orderStatusLabel(order.status), order.note || ""])
+  ];
+  const sheetRows = rows.map((row, index) => {
+    const cells = row.map((value, cellIndex) => createExcelCell(cellIndex + 1, index + 1, value)).join("");
+    return `<row r="${index + 1}">${cells}</row>`;
+  }).join("");
+  const files = {
+    "[Content_Types].xml": { name: "[Content_Types].xml", data: encodeText(`<?xml version="1.0" encoding="UTF-8"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/></Types>`) },
+    "_rels/.rels": { name: "_rels/.rels", data: encodeText(`<?xml version="1.0" encoding="UTF-8"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>`) },
+    "xl/workbook.xml": { name: "xl/workbook.xml", data: encodeText(`<?xml version="1.0" encoding="UTF-8"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets><sheet name="Commandes" sheetId="1" r:id="rId1"/></sheets></workbook>`) },
+    "xl/_rels/workbook.xml.rels": { name: "xl/_rels/workbook.xml.rels", data: encodeText(`<?xml version="1.0" encoding="UTF-8"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/></Relationships>`) },
+    "xl/worksheets/sheet1.xml": { name: "xl/worksheets/sheet1.xml", data: encodeText(`<?xml version="1.0" encoding="UTF-8"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetData>${sheetRows}</sheetData></worksheet>`) }
+  };
+  downloadBlob(new Blob([zipStore(files)], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }), `Commandes_${safeFileName(project.name)}.xlsx`);
+}
+
+function createExcelCell(column, row, value) {
+  const ref = `${excelColumnLetter(column)}${row}`;
+  if (typeof value === "number" && Number.isFinite(value)) return `<c r="${ref}"><v>${value}</v></c>`;
+  return `<c r="${ref}" t="inlineStr"><is><t>${escapeXml(value ?? "")}</t></is></c>`;
+}
+
+function excelColumnLetter(index) {
+  let value = index;
+  let result = "";
+  while (value > 0) {
+    const remainder = (value - 1) % 26;
+    result = String.fromCharCode(65 + remainder) + result;
+    value = Math.floor((value - 1) / 26);
+  }
+  return result;
+}
+
+function escapeXml(value) {
+  return String(value).replace(/[&<>"']/g, (character) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&apos;" })[character]);
 }
 
 function renderSettings() {
