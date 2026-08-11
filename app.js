@@ -187,6 +187,8 @@ let todoTasks = [];
 let technicianSchedule = [];
 let manualTechnicians = [];
 let selectedTechnicianScheduleId = "";
+let selectedProjectOrderId = "";
+let activeDeliveryView = "orders";
 let agencyPresets = [];
 let selectedTodoTaskId = "";
 let selectedGoNoGoId = goNoGoCases[0]?.id;
@@ -400,6 +402,26 @@ const elements = {
   hourThemes: document.querySelector("#hourThemes"),
   addDeliveryForProjectBtn: document.querySelector("#addDeliveryForProjectBtn"),
   projectDeliveryList: document.querySelector("#projectDeliveryList"),
+  addProjectOrderBtn: document.querySelector("#addProjectOrderBtn"),
+  projectOrdersViewBtn: document.querySelector("#projectOrdersViewBtn"),
+  projectDeliveriesViewBtn: document.querySelector("#projectDeliveriesViewBtn"),
+  projectOrdersView: document.querySelector("#projectOrdersView"),
+  projectDeliveriesView: document.querySelector("#projectDeliveriesView"),
+  projectOrderForm: document.querySelector("#projectOrderForm"),
+  projectOrderEditSelect: document.querySelector("#projectOrderEditSelect"),
+  projectOrderZoneInput: document.querySelector("#projectOrderZoneInput"),
+  projectOrderItemInput: document.querySelector("#projectOrderItemInput"),
+  projectOrderQuantityInput: document.querySelector("#projectOrderQuantityInput"),
+  projectOrderUnitInput: document.querySelector("#projectOrderUnitInput"),
+  projectOrderSupplierInput: document.querySelector("#projectOrderSupplierInput"),
+  projectOrderReferenceInput: document.querySelector("#projectOrderReferenceInput"),
+  projectOrderDateInput: document.querySelector("#projectOrderDateInput"),
+  projectOrderStatusInput: document.querySelector("#projectOrderStatusInput"),
+  projectOrderNoteInput: document.querySelector("#projectOrderNoteInput"),
+  projectOrderCancelBtn: document.querySelector("#projectOrderCancelBtn"),
+  projectOrderDeleteBtn: document.querySelector("#projectOrderDeleteBtn"),
+  projectOrderSubmitBtn: document.querySelector("#projectOrderSubmitBtn"),
+  projectOrdersByZone: document.querySelector("#projectOrdersByZone"),
   actionList: document.querySelector("#actionList"),
   milestoneList: document.querySelector("#milestoneList"),
   newProjectBtn: document.querySelector("#newProjectBtn"),
@@ -560,6 +582,13 @@ elements.addPurchaseBtn.addEventListener("click", addPurchase);
 elements.addFaeBtn.addEventListener("click", addFae);
 elements.addHourBtn.addEventListener("click", addHourLine);
 elements.addDeliveryForProjectBtn.addEventListener("click", openDeliveryCreationForSelectedProject);
+elements.addProjectOrderBtn.addEventListener("click", openNewProjectOrderEditor);
+elements.projectOrdersViewBtn.addEventListener("click", () => setDeliveryView("orders"));
+elements.projectDeliveriesViewBtn.addEventListener("click", () => setDeliveryView("deliveries"));
+elements.projectOrderForm.addEventListener("submit", saveProjectOrder);
+elements.projectOrderEditSelect.addEventListener("change", () => selectProjectOrder(elements.projectOrderEditSelect.value));
+elements.projectOrderCancelBtn.addEventListener("click", closeProjectOrderEditor);
+elements.projectOrderDeleteBtn.addEventListener("click", deleteSelectedProjectOrder);
 elements.addActionBtn.addEventListener("click", openTodoTaskCreationForSelectedProject);
 elements.addGngCaseBtn.addEventListener("click", addGoNoGoCase);
 elements.exportBtn.addEventListener("click", exportData);
@@ -824,6 +853,7 @@ function normalizeProjects(projectList) {
     project.purchases ||= [];
     project.faes ||= [];
     project.hours ||= [];
+    project.orders ||= [];
     project.timeEntries ||= [];
     const defaultTheme = project.lots?.[0]?.name || "Général";
     project.purchases.forEach((purchase) => {
@@ -1693,6 +1723,8 @@ function renderHours(project) {
 }
 
 function renderProjectDeliveries(project) {
+  renderProjectOrders(project);
+  applyDeliveryView();
   const deliveries = technicianSchedule
     .filter((item) => item.kind === "delivery" && item.projectId === project.id)
     .slice()
@@ -1723,6 +1755,121 @@ function renderProjectDeliveries(project) {
     });
     elements.projectDeliveryList.append(item);
   });
+}
+
+function setDeliveryView(view) {
+  activeDeliveryView = view;
+  applyDeliveryView();
+}
+
+function applyDeliveryView() {
+  const showOrders = activeDeliveryView === "orders";
+  elements.projectOrdersView.classList.toggle("is-hidden", !showOrders);
+  elements.projectDeliveriesView.classList.toggle("is-hidden", showOrders);
+  elements.projectOrdersViewBtn.classList.toggle("is-active", showOrders);
+  elements.projectDeliveriesViewBtn.classList.toggle("is-active", !showOrders);
+  elements.addProjectOrderBtn.classList.toggle("is-hidden", !showOrders);
+}
+
+function renderProjectOrders(project) {
+  const orders = project.orders || [];
+  renderProjectOrderEditOptions(orders);
+  if (!orders.length) {
+    elements.projectOrdersByZone.innerHTML = `<p class="muted">Aucune commande enregistrée. Ajoute les matériels à commander, zone par zone.</p>`;
+    return;
+  }
+
+  const byZone = new Map();
+  orders.forEach((order) => {
+    const zone = order.zone || "Zone à préciser";
+    if (!byZone.has(zone)) byZone.set(zone, []);
+    byZone.get(zone).push(order);
+  });
+  elements.projectOrdersByZone.innerHTML = "";
+  [...byZone.entries()].sort(([left], [right]) => left.localeCompare(right, "fr")).forEach(([zone, zoneOrders]) => {
+    const section = document.createElement("section");
+    section.className = "project-order-zone";
+    section.innerHTML = `
+      <header><h3>${escapeHtml(zone)}</h3><span>${zoneOrders.length} commande${zoneOrders.length > 1 ? "s" : ""}</span></header>
+      <div class="table-wrap"><table class="ops-table project-orders-table"><thead><tr><th>Désignation</th><th>Qté</th><th>Fournisseur</th><th>Référence</th><th>Échéance</th><th>Statut</th><th></th></tr></thead><tbody></tbody></table></div>
+    `;
+    const body = section.querySelector("tbody");
+    zoneOrders.sort((left, right) => new Date(left.date) - new Date(right.date)).forEach((order) => {
+      const row = document.createElement("tr");
+      row.innerHTML = `<td><strong>${escapeHtml(order.item)}</strong>${order.note ? `<small>${escapeHtml(order.note)}</small>` : ""}</td><td>${formatNumber(order.quantity)} ${escapeHtml(order.unit)}</td><td>${escapeHtml(order.supplier || "À consulter")}</td><td>${escapeHtml(order.reference || "-")}</td><td>${formatDate(order.date)}</td><td><span class="order-status ${order.status}">${orderStatusLabel(order.status)}</span></td><td><button class="icon-button small" type="button" title="Modifier la commande" aria-label="Modifier la commande"><span aria-hidden="true">✎</span></button></td>`;
+      row.querySelector("button").addEventListener("click", () => selectProjectOrder(order.id));
+      body.append(row);
+    });
+    elements.projectOrdersByZone.append(section);
+  });
+}
+
+function renderProjectOrderEditOptions(orders = getSelectedProject()?.orders || []) {
+  elements.projectOrderEditSelect.innerHTML = `<option value="">Nouvelle commande</option>${orders.map((order) => `<option value="${escapeAttribute(order.id)}">${escapeHtml(order.zone)} - ${escapeHtml(order.item)}</option>`).join("")}`;
+  elements.projectOrderEditSelect.value = orders.some((order) => order.id === selectedProjectOrderId) ? selectedProjectOrderId : "";
+  elements.projectOrderDeleteBtn.disabled = !elements.projectOrderEditSelect.value;
+}
+
+function openNewProjectOrderEditor() {
+  if (!requireProjectManagerAction()) return;
+  selectedProjectOrderId = "";
+  elements.projectOrderForm.reset();
+  elements.projectOrderQuantityInput.value = "1";
+  elements.projectOrderUnitInput.value = "u";
+  elements.projectOrderDateInput.value = todayString();
+  elements.projectOrderStatusInput.value = "a_faire";
+  renderProjectOrderEditOptions();
+  elements.projectOrderSubmitBtn.textContent = "Enregistrer";
+  elements.projectOrderForm.classList.remove("is-hidden");
+  elements.projectOrderZoneInput.focus();
+}
+
+function closeProjectOrderEditor() {
+  selectedProjectOrderId = "";
+  elements.projectOrderForm.classList.add("is-hidden");
+}
+
+function selectProjectOrder(id) {
+  const order = (getSelectedProject()?.orders || []).find((entry) => entry.id === id);
+  if (!order) return closeProjectOrderEditor();
+  selectedProjectOrderId = order.id;
+  elements.projectOrderZoneInput.value = order.zone;
+  elements.projectOrderItemInput.value = order.item;
+  elements.projectOrderQuantityInput.value = order.quantity;
+  elements.projectOrderUnitInput.value = order.unit;
+  elements.projectOrderSupplierInput.value = order.supplier;
+  elements.projectOrderReferenceInput.value = order.reference;
+  elements.projectOrderDateInput.value = order.date;
+  elements.projectOrderStatusInput.value = order.status;
+  elements.projectOrderNoteInput.value = order.note;
+  renderProjectOrderEditOptions();
+  elements.projectOrderSubmitBtn.textContent = "Modifier";
+  elements.projectOrderForm.classList.remove("is-hidden");
+}
+
+function saveProjectOrder(event) {
+  event.preventDefault();
+  if (!requireProjectManagerAction() || !elements.projectOrderForm.reportValidity()) return;
+  const project = getSelectedProject();
+  const values = { zone: elements.projectOrderZoneInput.value.trim(), item: elements.projectOrderItemInput.value.trim(), quantity: Number(elements.projectOrderQuantityInput.value), unit: elements.projectOrderUnitInput.value.trim(), supplier: elements.projectOrderSupplierInput.value.trim(), reference: elements.projectOrderReferenceInput.value.trim(), date: elements.projectOrderDateInput.value, status: elements.projectOrderStatusInput.value, note: elements.projectOrderNoteInput.value.trim() };
+  project.orders ||= [];
+  const existing = project.orders.find((order) => order.id === selectedProjectOrderId);
+  if (existing) Object.assign(existing, values);
+  else project.orders.push({ id: crypto.randomUUID(), ...values });
+  saveProjects();
+  closeProjectOrderEditor();
+  renderDetail();
+}
+
+function deleteSelectedProjectOrder() {
+  if (!requireProjectManagerAction() || !selectedProjectOrderId) return;
+  const project = getSelectedProject();
+  const order = project.orders?.find((entry) => entry.id === selectedProjectOrderId);
+  if (!order || !confirm(`Supprimer la commande "${order.item}" ?`)) return;
+  project.orders = project.orders.filter((entry) => entry.id !== order.id);
+  saveProjects();
+  closeProjectOrderEditor();
+  renderDetail();
 }
 
 function openDeliveryCreationForSelectedProject() {
@@ -2780,6 +2927,7 @@ function createProject(event) {
       { name: "Main d'oeuvre", planned: Math.round(revenue * 0.28), committed: 0 }
     ],
     purchases: [{ theme: "Matériel CVC", supplier: "À consulter", item: "Matériel CVC", orderRef: "", amount: 0, status: "devis" }],
+    orders: [],
     faes: [{ label: "Situation initiale", amount: 0, due: new Date().toISOString().slice(0, 10), status: "a_etablir" }],
     hours: [{ theme: "Main d'oeuvre", task: "Préparation chantier", planned: 0, used: 0 }],
     timeEntries: [],

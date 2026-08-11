@@ -402,9 +402,32 @@
                   <h2>Commandes et livraisons</h2>
                   <p class="muted">Suivi des commandes par zone, de la préparation jusqu'à la livraison.</p>
                 </div>
-                <button id="addDeliveryForProjectBtn" class="icon-button small" type="button" title="Ajouter une commande ou une livraison" aria-label="Ajouter une commande ou une livraison"><span aria-hidden="true">+</span></button>
+                <button id="addProjectOrderBtn" class="icon-button small" type="button" title="Ajouter une commande" aria-label="Ajouter une commande"><span aria-hidden="true">+</span></button>
               </div>
-              <div id="projectDeliveryList" class="project-delivery-list"></div>
+              <div class="delivery-view-tabs" aria-label="Suivi commandes et livraisons">
+                <button id="projectOrdersViewBtn" class="delivery-view-tab is-active" type="button">Commandes</button>
+                <button id="projectDeliveriesViewBtn" class="delivery-view-tab" type="button">Livraisons</button>
+              </div>
+              <section id="projectOrdersView">
+                <form id="projectOrderForm" class="todo-form is-hidden">
+                  <label class="todo-form-wide">Commande à modifier<select id="projectOrderEditSelect"><option value="">Nouvelle commande</option></select></label>
+                  <label>Zone du chantier<input id="projectOrderZoneInput" type="text" required placeholder="Ex. Bâtiment A - niveau 2" /></label>
+                  <label>Désignation<input id="projectOrderItemInput" type="text" required placeholder="Ex. Diffuseurs plafonniers" /></label>
+                  <label>Quantité<input id="projectOrderQuantityInput" type="number" min="0" step="0.01" required value="1" /></label>
+                  <label>Unité<input id="projectOrderUnitInput" type="text" required value="u" placeholder="u, ml, m²..." /></label>
+                  <label>Fournisseur<input id="projectOrderSupplierInput" type="text" placeholder="À consulter" /></label>
+                  <label>Référence commande<input id="projectOrderReferenceInput" type="text" placeholder="CDE-..." /></label>
+                  <label>Date prévue<input id="projectOrderDateInput" type="date" required /></label>
+                  <label>Statut<select id="projectOrderStatusInput"><option value="a_faire">À faire</option><option value="en_cours">En cours</option><option value="faite">Faite / livrée</option></select></label>
+                  <label class="todo-form-wide">Détail / commentaire<textarea id="projectOrderNoteInput" rows="2" placeholder="Caractéristiques, relance, condition de livraison..."></textarea></label>
+                  <div class="todo-form-actions"><button id="projectOrderCancelBtn" class="secondary-button" type="button">Annuler</button><button id="projectOrderDeleteBtn" class="secondary-button danger-button" type="button">Supprimer</button><button id="projectOrderSubmitBtn" class="primary-button" type="submit">Enregistrer</button></div>
+                </form>
+                <div id="projectOrdersByZone" class="project-orders-by-zone"></div>
+              </section>
+              <section id="projectDeliveriesView" class="is-hidden">
+                <div class="subview-heading"><p class="muted">Réceptions prévues dans le planning chantier.</p><button id="addDeliveryForProjectBtn" class="secondary-button" type="button">Planifier une livraison</button></div>
+                <div id="projectDeliveryList" class="project-delivery-list"></div>
+              </section>
             </section>
 
             <section class="panel" data-panel="gonogo">
