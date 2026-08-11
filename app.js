@@ -465,6 +465,7 @@ const elements = {
   todoOwnerFilterSelect: document.querySelector("#todoOwnerFilterSelect"),
   todoProjectFilterSelect: document.querySelector("#todoProjectFilterSelect"),
   todoClearFiltersBtn: document.querySelector("#todoClearFiltersBtn"),
+  todoClearDoneBtn: document.querySelector("#todoClearDoneBtn"),
   todoEditSelect: document.querySelector("#todoEditSelect"),
   todoTitleInput: document.querySelector("#todoTitleInput"),
   todoOwnerInput: document.querySelector("#todoOwnerInput"),
@@ -550,6 +551,7 @@ elements.todoTaskForm.addEventListener("submit", addTodoTask);
 elements.todoOwnerFilterSelect.addEventListener("change", renderTodoList);
 elements.todoProjectFilterSelect.addEventListener("change", renderTodoList);
 elements.todoClearFiltersBtn.addEventListener("click", clearTodoFilters);
+elements.todoClearDoneBtn.addEventListener("click", clearCompletedTodoTasks);
 elements.todoEditSelect.addEventListener("change", () => selectTodoTaskForEdit(elements.todoEditSelect.value));
 elements.todoNewTaskBtn.addEventListener("click", clearTodoEditor);
 elements.todoDeleteSelectedBtn.addEventListener("click", deleteSelectedTodoFromEditor);
@@ -1851,6 +1853,38 @@ function clearTodoFilters() {
   elements.todoOwnerFilterSelect.value = "";
   elements.todoProjectFilterSelect.value = "";
   renderTodoList();
+}
+
+function clearCompletedTodoTasks() {
+  if (!requireProjectManagerAction()) return;
+
+  const completedTasks = todoTasks.filter((task) => task.status === "done");
+  const completedActions = projects.reduce((count, project) => {
+    return count + (project.actions || []).filter((action) => action.done).length;
+  }, 0);
+  const total = completedTasks.length + completedActions;
+
+  if (!total) {
+    alert("Aucune tâche faite à vider.");
+    return;
+  }
+
+  const details = [
+    completedTasks.length ? `${completedTasks.length} tâche${completedTasks.length > 1 ? "s" : ""} Todo` : "",
+    completedActions ? `${completedActions} action${completedActions > 1 ? "s" : ""} chantier` : ""
+  ].filter(Boolean).join(" et ");
+
+  if (!confirm(`Supprimer ${details} terminée${total > 1 ? "s" : ""} ? Cette action est définitive.`)) return;
+
+  todoTasks = todoTasks.filter((task) => task.status !== "done");
+  projects.forEach((project) => {
+    project.actions = (project.actions || []).filter((action) => !action.done);
+  });
+  selectedTodoTaskId = "";
+  saveTodoTasks();
+  saveProjects();
+  clearTodoEditor();
+  renderDetail();
 }
 
 function getTodoWorkItemById(taskId) {
