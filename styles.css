@@ -1272,9 +1272,12 @@ td small {
   display: inline-block;
   width: 9px;
   height: 9px;
-  margin-right: 6px;
+  margin: 0 6px 0 0;
+  padding: 0;
+  border: 0;
   border-radius: 50%;
   vertical-align: 0.04em;
+  cursor: pointer;
 }
 
 .schedule-readiness-dot.is-ready {

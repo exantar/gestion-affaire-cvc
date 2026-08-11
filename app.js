@@ -1507,13 +1507,14 @@ function renderTechPlanning() {
 }
 
 function createTechPlanningTaskCard(task) {
-  const item = document.createElement("button");
+  const item = document.createElement("article");
   const project = projects.find((item) => item.id === task.projectId);
   const location = project ? `${project.name} · ${project.city}` : "Hors chantier";
-  item.type = "button";
   item.className = "planning-item technician-planning-item";
+  item.tabIndex = 0;
+  item.setAttribute("role", "button");
   item.innerHTML = `
-    <strong><span class="schedule-readiness-dot${task.ready ? " is-ready" : " is-missing"}" title="${task.ready ? "Éléments disponibles" : "Éléments manquants"}" aria-label="${task.ready ? "Éléments disponibles" : "Éléments manquants"}"></span>${escapeHtml(task.title)}</strong>
+    <strong><button class="schedule-readiness-dot schedule-readiness-toggle${task.ready ? " is-ready" : " is-missing"}" type="button" title="${task.ready ? "Éléments disponibles : cliquer pour signaler un manque" : "Éléments manquants : cliquer quand tout est disponible"}" aria-label="Modifier l'état de préparation"></button>${escapeHtml(task.title)}</strong>
     <small>${escapeHtml(location)}</small>
     <small>${escapeHtml(task.zone || "Zone à préciser")}</small>
     ${task.note ? `<em>${escapeHtml(task.note)}</em>` : ""}
@@ -1527,6 +1528,7 @@ function createTechPlanningTaskCard(task) {
     elements.techTaskInput.value = task.title;
     elements.techTaskInput.focus();
   });
+  attachScheduleReadinessToggle(item, task.id);
   return item;
 }
 
@@ -2341,16 +2343,40 @@ function createGeoDayCell(items, isDelivery = false) {
 
 function createTechnicianScheduleCard(item) {
   const project = projects.find((project) => project.id === item.projectId);
-  const card = document.createElement("button");
-  card.type = "button";
+  const card = document.createElement("article");
   card.className = `geo-planning-item${item.kind === "delivery" ? " is-delivery" : ""}`;
+  card.tabIndex = 0;
+  card.setAttribute("role", "button");
   card.innerHTML = `
-    <strong><span class="schedule-readiness-dot${item.ready ? " is-ready" : " is-missing"}" title="${item.ready ? "Éléments disponibles" : "Éléments manquants"}" aria-label="${item.ready ? "Éléments disponibles" : "Éléments manquants"}"></span>${escapeHtml(item.title)}</strong>
+    <strong><button class="schedule-readiness-dot schedule-readiness-toggle${item.ready ? " is-ready" : " is-missing"}" type="button" title="${item.ready ? "Éléments disponibles : cliquer pour signaler un manque" : "Éléments manquants : cliquer quand tout est disponible"}" aria-label="Modifier l'état de préparation"></button>${escapeHtml(item.title)}</strong>
     ${item.kind === "delivery" ? `<small>${escapeHtml(project ? `${project.name} · ${project.city}` : "Hors chantier")}</small>` : `<small>${escapeHtml(item.technicians.join(", ") || "À affecter")}</small>`}
     ${item.note ? `<em>Commentaire : ${escapeHtml(item.note)}</em>` : ""}
   `;
   card.addEventListener("click", () => selectTechnicianScheduleItem(item.id));
+  attachScheduleReadinessToggle(card, item.id);
   return card;
+}
+
+function attachScheduleReadinessToggle(card, itemId) {
+  const toggle = card.querySelector(".schedule-readiness-toggle");
+  toggle.addEventListener("click", (event) => {
+    event.stopPropagation();
+    toggleTechnicianScheduleReadiness(itemId);
+  });
+}
+
+function toggleTechnicianScheduleReadiness(itemId) {
+  const item = technicianSchedule.find((entry) => entry.id === itemId);
+  if (!item) return;
+  const assignedToCurrentTechnician = item.technicians.includes(getCurrentUserTaskOwner());
+  if (!canManageProjects() && !assignedToCurrentTechnician) {
+    alert("Cette tâche n'est pas affectée à ton compte.");
+    return;
+  }
+  item.ready = !item.ready;
+  saveTechnicianSchedule();
+  renderTechnicianSchedule();
+  renderTechPlanning();
 }
 
 function renderTechnicianScheduleProjectOptions() {
