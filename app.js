@@ -473,6 +473,7 @@ const elements = {
   todoTasksView: document.querySelector("#todoTasksView"),
   todoPlanningView: document.querySelector("#todoPlanningView"),
   todoTaskForm: document.querySelector("#todoTaskForm"),
+  todoOpenEditorBtn: document.querySelector("#todoOpenEditorBtn"),
   todoOwnerFilterSelect: document.querySelector("#todoOwnerFilterSelect"),
   todoProjectFilterSelect: document.querySelector("#todoProjectFilterSelect"),
   todoClearFiltersBtn: document.querySelector("#todoClearFiltersBtn"),
@@ -497,6 +498,7 @@ const elements = {
   todoDoneList: document.querySelector("#todoDoneList"),
   todoPlanningList: document.querySelector("#todoPlanningList"),
   technicianScheduleForm: document.querySelector("#technicianScheduleForm"),
+  technicianScheduleOpenEditorBtn: document.querySelector("#technicianScheduleOpenEditorBtn"),
   technicianScheduleEditSelect: document.querySelector("#technicianScheduleEditSelect"),
   technicianScheduleTitleInput: document.querySelector("#technicianScheduleTitleInput"),
   technicianScheduleKindInput: document.querySelector("#technicianScheduleKindInput"),
@@ -581,11 +583,13 @@ elements.todoProjectFilterSelect.addEventListener("change", renderTodoList);
 elements.todoClearFiltersBtn.addEventListener("click", clearTodoFilters);
 elements.todoClearDoneBtn.addEventListener("click", clearCompletedTodoTasks);
 elements.todoEditSelect.addEventListener("change", () => selectTodoTaskForEdit(elements.todoEditSelect.value));
-elements.todoNewTaskBtn.addEventListener("click", clearTodoEditor);
+elements.todoOpenEditorBtn.addEventListener("click", openNewTodoEditor);
+elements.todoNewTaskBtn.addEventListener("click", closeTodoEditor);
 elements.todoDeleteSelectedBtn.addEventListener("click", deleteSelectedTodoFromEditor);
 elements.technicianScheduleForm.addEventListener("submit", saveTechnicianScheduleItem);
+elements.technicianScheduleOpenEditorBtn.addEventListener("click", openNewTechnicianScheduleEditor);
 elements.technicianScheduleEditSelect.addEventListener("change", () => selectTechnicianScheduleItem(elements.technicianScheduleEditSelect.value));
-elements.technicianScheduleNewBtn.addEventListener("click", clearTechnicianScheduleEditor);
+elements.technicianScheduleNewBtn.addEventListener("click", closeTechnicianScheduleEditor);
 elements.technicianScheduleDeleteBtn.addEventListener("click", deleteSelectedTechnicianScheduleItem);
 elements.addManualTechnicianBtn.addEventListener("click", addManualTechnician);
 elements.settingsGearBtn.addEventListener("click", toggleSettingsPanel);
@@ -2025,6 +2029,18 @@ function selectTodoTaskForEdit(taskId) {
   elements.todoDeleteSelectedBtn.disabled = false;
   elements.todoSubmitBtn.textContent = "Modifier";
   renderTodoList();
+  elements.todoTaskForm.classList.remove("is-hidden");
+}
+
+function openNewTodoEditor() {
+  clearTodoEditor();
+  elements.todoTaskForm.classList.remove("is-hidden");
+  elements.todoTitleInput.focus();
+}
+
+function closeTodoEditor() {
+  clearTodoEditor();
+  elements.todoTaskForm.classList.add("is-hidden");
 }
 
 function clearTodoEditor() {
@@ -2446,6 +2462,18 @@ function selectTechnicianScheduleItem(id) {
   renderTechnicianScheduleAssignees(item.technicians);
   renderTechnicianScheduleEditOptions();
   elements.technicianScheduleSubmitBtn.textContent = "Modifier";
+  elements.technicianScheduleForm.classList.remove("is-hidden");
+}
+
+function openNewTechnicianScheduleEditor() {
+  clearTechnicianScheduleEditor();
+  elements.technicianScheduleForm.classList.remove("is-hidden");
+  elements.technicianScheduleTitleInput.focus();
+}
+
+function closeTechnicianScheduleEditor() {
+  clearTechnicianScheduleEditor();
+  elements.technicianScheduleForm.classList.add("is-hidden");
 }
 
 function clearTechnicianScheduleEditor() {
@@ -2491,7 +2519,7 @@ function saveTechnicianScheduleItem(event) {
   }
   saveTechnicianSchedule();
   renderTechnicianSchedule();
-  selectTechnicianScheduleItem(selectedTechnicianScheduleId);
+  closeTechnicianScheduleEditor();
   renderTechPlanning();
 }
 
@@ -2501,7 +2529,7 @@ function deleteSelectedTechnicianScheduleItem() {
   if (!item || !confirm(`Supprimer l'intervention "${item.title}" ?`)) return;
   technicianSchedule = technicianSchedule.filter((entry) => entry.id !== item.id);
   saveTechnicianSchedule();
-  clearTechnicianScheduleEditor();
+  closeTechnicianScheduleEditor();
   renderTechnicianSchedule();
   renderTechPlanning();
 }
@@ -2838,9 +2866,7 @@ function addTodoTask(event) {
 
   todoTasks.push(normalizeTodoTask(task));
   saveTodoTasks();
-  selectedTodoTaskId = task.id;
-  renderTodoList();
-  selectTodoTaskForEdit(task.id);
+  closeTodoEditor();
 }
 
 function updateTodoTaskFromEditor(taskId) {
@@ -2862,8 +2888,7 @@ function updateTodoTaskFromEditor(taskId) {
 
     saveProjects();
     renderDetail();
-    renderTodoList();
-    selectTodoTaskForEdit(taskId);
+    closeTodoEditor();
     return;
   }
 
@@ -2880,15 +2905,14 @@ function updateTodoTaskFromEditor(taskId) {
   task.constraint = elements.todoConstraintInput.value.trim();
 
   saveTodoTasks();
-  renderTodoList();
-  selectTodoTaskForEdit(taskId);
+  closeTodoEditor();
 }
 
 function deleteSelectedTodoFromEditor() {
   if (!selectedTodoTaskId) return;
   const taskId = selectedTodoTaskId;
   deleteTodoTask(taskId);
-  if (!getTodoWorkItemById(taskId)) clearTodoEditor();
+  if (!getTodoWorkItemById(taskId)) closeTodoEditor();
 }
 
 function updateTodoTaskStatus(taskId, status) {
