@@ -506,6 +506,9 @@ const elements = {
   technicianScheduleKindInput: document.querySelector("#technicianScheduleKindInput"),
   technicianScheduleProjectInput: document.querySelector("#technicianScheduleProjectInput"),
   technicianScheduleZoneInput: document.querySelector("#technicianScheduleZoneInput"),
+  technicianScheduleZoneSuggestions: document.querySelector("#technicianScheduleZoneSuggestions"),
+  technicianScheduleOrderStatusField: document.querySelector("#technicianScheduleOrderStatusField"),
+  technicianScheduleOrderStatusInput: document.querySelector("#technicianScheduleOrderStatusInput"),
   technicianScheduleDateInput: document.querySelector("#technicianScheduleDateInput"),
   technicianScheduleReadyInput: document.querySelector("#technicianScheduleReadyInput"),
   technicianScheduleAssignees: document.querySelector("#technicianScheduleAssignees"),
@@ -592,6 +595,8 @@ elements.todoDeleteSelectedBtn.addEventListener("click", deleteSelectedTodoFromE
 elements.technicianScheduleForm.addEventListener("submit", saveTechnicianScheduleItem);
 elements.technicianScheduleOpenEditorBtn.addEventListener("click", openNewTechnicianScheduleEditor);
 elements.technicianScheduleEditSelect.addEventListener("change", () => selectTechnicianScheduleItem(elements.technicianScheduleEditSelect.value));
+elements.technicianScheduleKindInput.addEventListener("change", updateTechnicianScheduleKindFields);
+elements.technicianScheduleProjectInput.addEventListener("change", renderTechnicianScheduleZoneOptions);
 elements.technicianScheduleNewBtn.addEventListener("click", closeTechnicianScheduleEditor);
 elements.technicianScheduleDeleteBtn.addEventListener("click", deleteSelectedTechnicianScheduleItem);
 elements.addManualTechnicianBtn.addEventListener("click", addManualTechnician);
@@ -806,6 +811,7 @@ function normalizeTechnicianScheduleItem(item) {
     kind: item.kind === "delivery" ? "delivery" : "task",
     projectId: item.projectId || "",
     zone: item.zone || "",
+    orderStatus: ["a_faire", "en_cours", "faite"].includes(item.orderStatus) ? item.orderStatus : "a_faire",
     date: item.date || todayString(),
     ready: Boolean(item.ready),
     technicians: Array.isArray(item.technicians) ? item.technicians.filter(Boolean) : [],
@@ -1693,7 +1699,7 @@ function renderProjectDeliveries(project) {
     .sort((left, right) => new Date(left.date) - new Date(right.date));
 
   if (!deliveries.length) {
-    elements.projectDeliveryList.innerHTML = `<p class="muted">Aucune livraison prévue pour ce chantier.</p>`;
+    elements.projectDeliveryList.innerHTML = `<p class="muted">Aucune commande ou livraison enregistrée pour ce chantier.</p>`;
     return;
   }
 
@@ -1707,6 +1713,7 @@ function renderProjectDeliveries(project) {
       <div>
         <strong>${escapeHtml(delivery.title)}</strong>
         <span>${formatDate(delivery.date)}${delivery.zone ? ` · ${escapeHtml(delivery.zone)}` : ""}</span>
+        <small class="order-status ${delivery.orderStatus}">${orderStatusLabel(delivery.orderStatus)}</small>
         ${delivery.note ? `<small>${escapeHtml(delivery.note)}</small>` : ""}
       </div>
     `;
@@ -1726,7 +1733,12 @@ function openDeliveryCreationForSelectedProject() {
   openNewTechnicianScheduleEditor();
   elements.technicianScheduleKindInput.value = "delivery";
   elements.technicianScheduleProjectInput.value = project.id;
+  updateTechnicianScheduleKindFields();
   elements.technicianScheduleTitleInput.focus();
+}
+
+function orderStatusLabel(status) {
+  return ({ a_faire: "À faire", en_cours: "En cours", faite: "Faite / livrée" })[status] || "À faire";
 }
 
 function renderGoNoGo() {
@@ -2447,6 +2459,24 @@ function renderTechnicianScheduleProjectOptions() {
   const selected = elements.technicianScheduleProjectInput.value;
   elements.technicianScheduleProjectInput.innerHTML = todoProjectOptions(selected);
   elements.technicianScheduleProjectInput.value = projects.some((project) => project.id === selected) ? selected : "";
+  renderTechnicianScheduleZoneOptions();
+}
+
+function renderTechnicianScheduleZoneOptions() {
+  const projectId = elements.technicianScheduleProjectInput.value;
+  const zones = [...new Set(technicianSchedule
+    .filter((item) => item.projectId === projectId && item.zone)
+    .map((item) => item.zone.trim())
+    .filter(Boolean))]
+    .sort((left, right) => left.localeCompare(right, "fr"));
+  elements.technicianScheduleZoneSuggestions.innerHTML = zones
+    .map((zone) => `<option value="${escapeAttribute(zone)}"></option>`)
+    .join("");
+}
+
+function updateTechnicianScheduleKindFields() {
+  const isOrder = elements.technicianScheduleKindInput.value === "delivery";
+  elements.technicianScheduleOrderStatusField.classList.toggle("is-hidden", !isOrder);
 }
 
 function renderTechnicianScheduleAssignees(selected = getSelectedTechnicianScheduleAssignees()) {
@@ -2503,13 +2533,16 @@ function selectTechnicianScheduleItem(id) {
   elements.technicianScheduleTitleInput.value = item.title;
   elements.technicianScheduleKindInput.value = item.kind;
   elements.technicianScheduleProjectInput.value = item.projectId;
+  renderTechnicianScheduleZoneOptions();
   elements.technicianScheduleZoneInput.value = item.zone;
+  elements.technicianScheduleOrderStatusInput.value = item.orderStatus || "a_faire";
   elements.technicianScheduleDateInput.value = item.date;
   elements.technicianScheduleReadyInput.checked = item.ready;
   elements.technicianScheduleNoteInput.value = item.note;
   renderTechnicianScheduleAssignees(item.technicians);
   renderTechnicianScheduleEditOptions();
   elements.technicianScheduleSubmitBtn.textContent = "Modifier";
+  updateTechnicianScheduleKindFields();
   elements.technicianScheduleForm.classList.remove("is-hidden");
 }
 
@@ -2530,6 +2563,8 @@ function clearTechnicianScheduleEditor() {
   elements.technicianScheduleDateInput.value = todayString();
   elements.technicianScheduleReadyInput.checked = false;
   elements.technicianScheduleKindInput.value = "task";
+  elements.technicianScheduleOrderStatusInput.value = "a_faire";
+  updateTechnicianScheduleKindFields();
   renderTechnicianScheduleProjectOptions();
   renderTechnicianScheduleAssignees([]);
   renderTechnicianScheduleEditOptions();
@@ -2546,6 +2581,7 @@ function saveTechnicianScheduleItem(event) {
     kind: elements.technicianScheduleKindInput.value,
     projectId: elements.technicianScheduleProjectInput.value,
     zone: elements.technicianScheduleZoneInput.value.trim(),
+    orderStatus: elements.technicianScheduleOrderStatusInput.value,
     date: elements.technicianScheduleDateInput.value,
     ready: elements.technicianScheduleReadyInput.checked,
     technicians: getSelectedTechnicianScheduleAssignees(),

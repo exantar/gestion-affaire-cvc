@@ -399,10 +399,10 @@
               <div class="panel-heading">
                 <div>
                   <p class="eyebrow">Chantier</p>
-                  <h2>Livraisons prévues</h2>
-                  <p class="muted">Réceptions, approvisionnements et informations de livraison du chantier.</p>
+                  <h2>Commandes et livraisons</h2>
+                  <p class="muted">Suivi des commandes par zone, de la préparation jusqu'à la livraison.</p>
                 </div>
-                <button id="addDeliveryForProjectBtn" class="icon-button small" type="button" title="Planifier une livraison" aria-label="Planifier une livraison"><span aria-hidden="true">+</span></button>
+                <button id="addDeliveryForProjectBtn" class="icon-button small" type="button" title="Ajouter une commande ou une livraison" aria-label="Ajouter une commande ou une livraison"><span aria-hidden="true">+</span></button>
               </div>
               <div id="projectDeliveryList" class="project-delivery-list"></div>
             </section>
@@ -678,7 +678,7 @@
                   Type
                   <select id="technicianScheduleKindInput">
                     <option value="task">Intervention</option>
-                    <option value="delivery">Livraison prévue</option>
+                    <option value="delivery">Commande / livraison</option>
                   </select>
                 </label>
                 <label>
@@ -691,7 +691,16 @@
                 </label>
                 <label>
                   Localisation précise
-                  <input id="technicianScheduleZoneInput" type="text" placeholder="Ex. Bâtiment A, local technique, niveau 2" />
+                  <input id="technicianScheduleZoneInput" list="technicianScheduleZoneSuggestions" type="text" placeholder="Zone à définir : bâtiment, niveau, local..." />
+                  <datalist id="technicianScheduleZoneSuggestions"></datalist>
+                </label>
+                <label id="technicianScheduleOrderStatusField" class="delivery-order-field">
+                  Statut de la commande
+                  <select id="technicianScheduleOrderStatusInput">
+                    <option value="a_faire">À faire</option>
+                    <option value="en_cours">En cours</option>
+                    <option value="faite">Faite / livrée</option>
+                  </select>
                 </label>
                 <label>
                   Date d'intervention

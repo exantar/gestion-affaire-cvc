@@ -1336,6 +1336,28 @@ td small {
   margin-top: 6px;
 }
 
+.order-status {
+  width: fit-content;
+  padding: 3px 7px;
+  border-radius: 3px;
+  font-weight: 800;
+}
+
+.order-status.a_faire {
+  color: #6d5200;
+  background: rgba(255, 203, 5, 0.24);
+}
+
+.order-status.en_cours {
+  color: #9c3500;
+  background: rgba(244, 126, 35, 0.16);
+}
+
+.order-status.faite {
+  color: var(--green);
+  background: rgba(79, 143, 58, 0.14);
+}
+
 .todo-form-project {
   grid-column: 1 / -1;
   border: 1px solid var(--line);
