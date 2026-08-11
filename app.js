@@ -503,6 +503,7 @@ const elements = {
   technicianScheduleProjectInput: document.querySelector("#technicianScheduleProjectInput"),
   technicianScheduleZoneInput: document.querySelector("#technicianScheduleZoneInput"),
   technicianScheduleDateInput: document.querySelector("#technicianScheduleDateInput"),
+  technicianScheduleReadyInput: document.querySelector("#technicianScheduleReadyInput"),
   technicianScheduleAssignees: document.querySelector("#technicianScheduleAssignees"),
   technicianScheduleNoteInput: document.querySelector("#technicianScheduleNoteInput"),
   technicianScheduleNewBtn: document.querySelector("#technicianScheduleNewBtn"),
@@ -799,6 +800,7 @@ function normalizeTechnicianScheduleItem(item) {
     projectId: item.projectId || "",
     zone: item.zone || "",
     date: item.date || todayString(),
+    ready: Boolean(item.ready),
     technicians: Array.isArray(item.technicians) ? item.technicians.filter(Boolean) : [],
     note: item.note || ""
   };
@@ -1511,7 +1513,7 @@ function createTechPlanningTaskCard(task) {
   item.type = "button";
   item.className = "planning-item technician-planning-item";
   item.innerHTML = `
-    <strong>${escapeHtml(task.title)}</strong>
+    <strong><span class="schedule-readiness-dot${task.ready ? " is-ready" : " is-missing"}" title="${task.ready ? "Éléments disponibles" : "Éléments manquants"}" aria-label="${task.ready ? "Éléments disponibles" : "Éléments manquants"}"></span>${escapeHtml(task.title)}</strong>
     <small>${escapeHtml(location)}</small>
     <small>${escapeHtml(task.zone || "Zone à préciser")}</small>
     ${task.note ? `<em>${escapeHtml(task.note)}</em>` : ""}
@@ -2343,7 +2345,7 @@ function createTechnicianScheduleCard(item) {
   card.type = "button";
   card.className = `geo-planning-item${item.kind === "delivery" ? " is-delivery" : ""}`;
   card.innerHTML = `
-    <strong>${escapeHtml(item.title)}</strong>
+    <strong><span class="schedule-readiness-dot${item.ready ? " is-ready" : " is-missing"}" title="${item.ready ? "Éléments disponibles" : "Éléments manquants"}" aria-label="${item.ready ? "Éléments disponibles" : "Éléments manquants"}"></span>${escapeHtml(item.title)}</strong>
     ${item.kind === "delivery" ? `<small>${escapeHtml(project ? `${project.name} · ${project.city}` : "Hors chantier")}</small>` : `<small>${escapeHtml(item.technicians.join(", ") || "À affecter")}</small>`}
     ${item.note ? `<em>Commentaire : ${escapeHtml(item.note)}</em>` : ""}
   `;
@@ -2413,6 +2415,7 @@ function selectTechnicianScheduleItem(id) {
   elements.technicianScheduleProjectInput.value = item.projectId;
   elements.technicianScheduleZoneInput.value = item.zone;
   elements.technicianScheduleDateInput.value = item.date;
+  elements.technicianScheduleReadyInput.checked = item.ready;
   elements.technicianScheduleNoteInput.value = item.note;
   renderTechnicianScheduleAssignees(item.technicians);
   renderTechnicianScheduleEditOptions();
@@ -2423,6 +2426,7 @@ function clearTechnicianScheduleEditor() {
   selectedTechnicianScheduleId = "";
   elements.technicianScheduleForm.reset();
   elements.technicianScheduleDateInput.value = todayString();
+  elements.technicianScheduleReadyInput.checked = false;
   elements.technicianScheduleKindInput.value = "task";
   renderTechnicianScheduleProjectOptions();
   renderTechnicianScheduleAssignees([]);
@@ -2441,6 +2445,7 @@ function saveTechnicianScheduleItem(event) {
     projectId: elements.technicianScheduleProjectInput.value,
     zone: elements.technicianScheduleZoneInput.value.trim(),
     date: elements.technicianScheduleDateInput.value,
+    ready: elements.technicianScheduleReadyInput.checked,
     technicians: getSelectedTechnicianScheduleAssignees(),
     note: elements.technicianScheduleNoteInput.value.trim()
   };

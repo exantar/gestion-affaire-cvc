@@ -1248,6 +1248,45 @@ td small {
   accent-color: var(--accent);
 }
 
+.schedule-ready-toggle {
+  display: flex !important;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 42px;
+  padding: 0 10px;
+  border: 1px solid var(--line);
+  background: var(--panel);
+  color: var(--muted) !important;
+  font-size: 0.84rem;
+}
+
+.schedule-ready-toggle input {
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  accent-color: var(--green);
+}
+
+.schedule-readiness-dot {
+  display: inline-block;
+  width: 9px;
+  height: 9px;
+  margin-right: 6px;
+  border-radius: 50%;
+  vertical-align: 0.04em;
+}
+
+.schedule-readiness-dot.is-ready {
+  background: var(--green);
+  box-shadow: 0 0 0 3px rgba(79, 143, 58, 0.14);
+}
+
+.schedule-readiness-dot.is-missing {
+  background: var(--accent);
+  box-shadow: 0 0 0 3px rgba(238, 50, 36, 0.12);
+}
+
 .todo-form-project {
   grid-column: 1 / -1;
   border: 1px solid var(--line);
