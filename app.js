@@ -1795,6 +1795,7 @@ function renderProjectOrders(project) {
     byZone.get(zone).push(order);
   });
   elements.projectOrdersByZone.innerHTML = "";
+  renderProjectOrderTotals(orders);
   [...byZone.entries()].sort(([left], [right]) => left.localeCompare(right, "fr")).forEach(([zone, zoneOrders]) => {
     const section = document.createElement("section");
     section.className = "project-order-zone";
@@ -1814,6 +1815,34 @@ function renderProjectOrders(project) {
     });
     elements.projectOrdersByZone.append(section);
   });
+}
+
+function renderProjectOrderTotals(orders) {
+  if (!orders.length) return;
+  const totals = new Map();
+  orders.forEach((order) => {
+    const item = String(order.item || "Élément à préciser").trim();
+    const unit = String(order.unit || "u").trim();
+    const key = `${item.toLocaleLowerCase("fr")}::${unit.toLocaleLowerCase("fr")}`;
+    if (!totals.has(key)) totals.set(key, { item, unit, quantity: 0, zones: new Set() });
+    const total = totals.get(key);
+    total.quantity += Number(order.quantity) || 0;
+    total.zones.add(order.zone || "Zone à préciser");
+  });
+
+  const section = document.createElement("section");
+  section.className = "project-order-totals";
+  section.innerHTML = `
+    <header><div><p class="eyebrow">Synthèse toutes zones</p><h3>Total par item identique</h3></div><span>${totals.size} article${totals.size > 1 ? "s" : ""}</span></header>
+    <div class="table-wrap"><table class="ops-table"><thead><tr><th>Désignation</th><th>Total</th><th>Zones concernées</th></tr></thead><tbody></tbody></table></div>
+  `;
+  const body = section.querySelector("tbody");
+  [...totals.values()].sort((left, right) => left.item.localeCompare(right.item, "fr")).forEach((total) => {
+    const row = document.createElement("tr");
+    row.innerHTML = `<td><strong>${escapeHtml(total.item)}</strong></td><td class="project-order-total-quantity">${formatNumber(total.quantity)} ${escapeHtml(total.unit)}</td><td>${escapeHtml([...total.zones].sort((left, right) => left.localeCompare(right, "fr")).join(", "))}</td>`;
+    body.append(row);
+  });
+  elements.projectOrdersByZone.append(section);
 }
 
 function renderProjectOrderZoneSuggestions(project) {

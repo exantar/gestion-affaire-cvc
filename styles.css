@@ -1335,6 +1335,42 @@ td small {
   gap: 14px;
 }
 
+.project-order-totals {
+  border: 1px solid var(--line);
+  border-left: 5px solid var(--accent);
+  background: var(--panel);
+}
+
+.project-order-totals header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 11px 13px;
+  border-bottom: 1px solid var(--line);
+}
+
+.project-order-totals h3,
+.project-order-totals p,
+.project-order-totals header span {
+  margin: 0;
+}
+
+.project-order-totals h3 {
+  margin-top: 2px;
+  font-size: 0.94rem;
+}
+
+.project-order-totals header span {
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+
+.project-order-total-quantity {
+  color: var(--accent);
+  font-weight: 800;
+}
+
 .project-order-zone {
   border: 1px solid var(--line);
   border-left: 5px solid var(--accent-yellow);
