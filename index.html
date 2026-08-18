@@ -27,6 +27,7 @@
           <button id="authLoginBtn" class="primary-button" type="submit">Se connecter</button>
           <button id="authSignupBtn" class="secondary-button" type="button">Créer un compte</button>
           <button id="authResendConfirmationBtn" class="secondary-button" type="button">Renvoyer la confirmation</button>
+          <button id="authPasswordResetBtn" class="secondary-button" type="button">Mot de passe oublié</button>
         </div>
         <small>Le compte administrateur est défini dans la configuration Supabase du site.</small>
       </form>
@@ -870,6 +871,28 @@
         <menu>
           <button value="cancel" class="secondary-button" type="submit">Annuler</button>
           <button id="createProjectConfirm" value="default" class="primary-button" type="submit">Créer</button>
+        </menu>
+      </form>
+    </dialog>
+
+    <dialog id="passwordRecoveryDialog" aria-label="Nouveau mot de passe">
+      <form id="passwordRecoveryForm" class="dialog-card">
+        <div>
+          <p class="eyebrow">Récupération du compte</p>
+          <h2>Choisir un nouveau mot de passe</h2>
+        </div>
+        <label>
+          Nouveau mot de passe
+          <input id="recoveryPasswordInput" type="password" autocomplete="new-password" minlength="6" required />
+        </label>
+        <label>
+          Confirmer le mot de passe
+          <input id="recoveryPasswordConfirmInput" type="password" autocomplete="new-password" minlength="6" required />
+        </label>
+        <p id="passwordRecoveryMessage" class="auth-message" role="status"></p>
+        <menu>
+          <button id="passwordRecoveryCancelBtn" class="secondary-button" type="button">Annuler</button>
+          <button class="primary-button" type="submit">Mettre à jour</button>
         </menu>
       </form>
     </dialog>

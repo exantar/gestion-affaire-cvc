@@ -374,7 +374,14 @@ const elements = {
   authLoginBtn: document.querySelector("#authLoginBtn"),
   authSignupBtn: document.querySelector("#authSignupBtn"),
   authResendConfirmationBtn: document.querySelector("#authResendConfirmationBtn"),
+  authPasswordResetBtn: document.querySelector("#authPasswordResetBtn"),
   authMessage: document.querySelector("#authMessage"),
+  passwordRecoveryDialog: document.querySelector("#passwordRecoveryDialog"),
+  passwordRecoveryForm: document.querySelector("#passwordRecoveryForm"),
+  recoveryPasswordInput: document.querySelector("#recoveryPasswordInput"),
+  recoveryPasswordConfirmInput: document.querySelector("#recoveryPasswordConfirmInput"),
+  passwordRecoveryMessage: document.querySelector("#passwordRecoveryMessage"),
+  passwordRecoveryCancelBtn: document.querySelector("#passwordRecoveryCancelBtn"),
   userBadge: document.querySelector("#userBadge"),
   logoutBtn: document.querySelector("#logoutBtn"),
   projectList: document.querySelector("#projectList"),
@@ -571,6 +578,9 @@ elements.projectSpaceBtn.addEventListener("click", () => setActiveSpace("chantie
 elements.authForm.addEventListener("submit", signInUser);
 elements.authSignupBtn.addEventListener("click", signUpUser);
 elements.authResendConfirmationBtn.addEventListener("click", resendAuthConfirmation);
+elements.authPasswordResetBtn.addEventListener("click", sendPasswordReset);
+elements.passwordRecoveryForm.addEventListener("submit", updateRecoveredPassword);
+elements.passwordRecoveryCancelBtn.addEventListener("click", () => elements.passwordRecoveryDialog.close());
 elements.logoutBtn.addEventListener("click", signOutUser);
 elements.goNoGoSpaceBtn.addEventListener("click", () => setActiveSpace("gonogo"));
 elements.todoSpaceBtn.addEventListener("click", () => setActiveSpace("todolist"));
@@ -955,11 +965,12 @@ async function initAuth() {
     authReady = true;
     applyAuthState();
 
-    remoteStore.client.auth.onAuthStateChange(async (_event, session) => {
+    remoteStore.client.auth.onAuthStateChange(async (event, session) => {
       currentUser = session?.user || null;
       await loadCurrentProfile();
       applyAuthState();
       if (currentUser) syncFromRemote();
+      if (event === "PASSWORD_RECOVERY") openPasswordRecoveryDialog();
     });
 
     if (currentUser) syncFromRemote();
@@ -996,7 +1007,7 @@ async function signInUser(event) {
 function authErrorMessage(error) {
   const message = String(error?.message || "").toLowerCase();
   if (message.includes("email not confirmed")) return "Confirme d'abord l'adresse email via le message reçu de Supabase.";
-  if (message.includes("invalid login credentials")) return "Email ou mot de passe incorrect.";
+  if (message.includes("invalid login credentials")) return "Email ou mot de passe incorrect. Utilise « Mot de passe oublié » pour en choisir un nouveau.";
   if (message.includes("failed to fetch") || message.includes("network") || message.includes("load failed")) return "Le service de connexion est inaccessible. Vérifie la connexion internet du téléphone puis réessaie.";
   if (message.includes("rate limit")) return "Trop de tentatives. Attends quelques minutes avant de réessayer.";
   return `Connexion impossible : ${error?.message || "erreur inconnue"}`;
@@ -1044,6 +1055,61 @@ async function resendAuthConfirmation() {
     console.error("Renvoi de confirmation impossible", error);
     setAuthMessage(authErrorMessage(error), true);
   }
+}
+
+async function sendPasswordReset() {
+  const email = elements.authEmailInput.value.trim();
+  if (!email) {
+    setAuthMessage("Indique d'abord ton adresse email.", true);
+    return;
+  }
+  setAuthMessage("Envoi du lien de réinitialisation...");
+  try {
+    const { error } = await remoteStore.client.auth.resetPasswordForEmail(email, {
+      redirectTo: window.location.origin
+    });
+    if (error) {
+      setAuthMessage(`Envoi impossible : ${error.message}`, true);
+      return;
+    }
+    setAuthMessage("Lien envoyé. Ouvre le mail reçu depuis ton téléphone pour choisir un nouveau mot de passe.");
+  } catch (error) {
+    console.error("Réinitialisation du mot de passe impossible", error);
+    setAuthMessage(authErrorMessage(error), true);
+  }
+}
+
+function openPasswordRecoveryDialog() {
+  elements.passwordRecoveryForm.reset();
+  elements.passwordRecoveryMessage.textContent = "";
+  if (!elements.passwordRecoveryDialog.open) elements.passwordRecoveryDialog.showModal();
+  elements.recoveryPasswordInput.focus();
+}
+
+async function updateRecoveredPassword(event) {
+  event.preventDefault();
+  const password = elements.recoveryPasswordInput.value;
+  const confirmation = elements.recoveryPasswordConfirmInput.value;
+  if (password.length < 6) {
+    elements.passwordRecoveryMessage.textContent = "Le mot de passe doit contenir au moins 6 caractères.";
+    elements.passwordRecoveryMessage.classList.add("is-error");
+    return;
+  }
+  if (password !== confirmation) {
+    elements.passwordRecoveryMessage.textContent = "Les deux mots de passe ne correspondent pas.";
+    elements.passwordRecoveryMessage.classList.add("is-error");
+    return;
+  }
+  elements.passwordRecoveryMessage.textContent = "Mise à jour en cours...";
+  elements.passwordRecoveryMessage.classList.remove("is-error");
+  const { error } = await remoteStore.client.auth.updateUser({ password });
+  if (error) {
+    elements.passwordRecoveryMessage.textContent = `Mise à jour impossible : ${error.message}`;
+    elements.passwordRecoveryMessage.classList.add("is-error");
+    return;
+  }
+  elements.passwordRecoveryDialog.close();
+  setAuthMessage("Mot de passe mis à jour.");
 }
 
 async function signOutUser() {
