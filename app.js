@@ -189,6 +189,7 @@ let manualTechnicians = [];
 let selectedTechnicianScheduleId = "";
 let selectedProjectOrderId = "";
 let activeDeliveryView = "orders";
+let showTechnicianScheduleHistory = false;
 let agencyPresets = [];
 let selectedTodoTaskId = "";
 let selectedGoNoGoId = goNoGoCases[0]?.id;
@@ -440,6 +441,7 @@ const elements = {
   techNoteInput: document.querySelector("#techNoteInput"),
   techEntryList: document.querySelector("#techEntryList"),
   techPlanningList: document.querySelector("#techPlanningList"),
+  techPlanningHistoryBtn: document.querySelector("#techPlanningHistoryBtn"),
   projectDialog: document.querySelector("#projectDialog"),
   createProjectConfirm: document.querySelector("#createProjectConfirm"),
   addLotBtn: document.querySelector("#addLotBtn"),
@@ -526,6 +528,7 @@ const elements = {
   todoPlanningList: document.querySelector("#todoPlanningList"),
   technicianScheduleForm: document.querySelector("#technicianScheduleForm"),
   technicianScheduleOpenEditorBtn: document.querySelector("#technicianScheduleOpenEditorBtn"),
+  technicianScheduleHistoryBtn: document.querySelector("#technicianScheduleHistoryBtn"),
   technicianScheduleEditSelect: document.querySelector("#technicianScheduleEditSelect"),
   technicianScheduleTitleInput: document.querySelector("#technicianScheduleTitleInput"),
   technicianScheduleKindInput: document.querySelector("#technicianScheduleKindInput"),
@@ -628,6 +631,8 @@ elements.todoNewTaskBtn.addEventListener("click", closeTodoEditor);
 elements.todoDeleteSelectedBtn.addEventListener("click", deleteSelectedTodoFromEditor);
 elements.technicianScheduleForm.addEventListener("submit", saveTechnicianScheduleItem);
 elements.technicianScheduleOpenEditorBtn.addEventListener("click", openNewTechnicianScheduleEditor);
+elements.technicianScheduleHistoryBtn.addEventListener("click", toggleTechnicianScheduleHistory);
+elements.techPlanningHistoryBtn.addEventListener("click", toggleTechnicianScheduleHistory);
 elements.technicianScheduleEditSelect.addEventListener("change", () => selectTechnicianScheduleItem(elements.technicianScheduleEditSelect.value));
 elements.technicianScheduleKindInput.addEventListener("change", updateTechnicianScheduleKindFields);
 elements.technicianScheduleProjectInput.addEventListener("change", renderTechnicianScheduleZoneOptions);
@@ -1510,11 +1515,18 @@ function renderTechPlanning() {
     .sort((a, b) => new Date(a.date) - new Date(b.date));
 
   if (!tasks.length) {
+    updateTechnicianScheduleHistoryButton(elements.techPlanningHistoryBtn, 0);
     elements.techPlanningList.innerHTML = `<p class="muted">Aucune intervention affectée à ${escapeHtml(technician)}.</p>`;
     return;
   }
 
-  groupTodoTasksByWeek(tasks).forEach(({ weekStart, weekEnd, tasks: weekTasks }) => {
+  const { weeks, historicalCount } = getTechnicianScheduleWeeks(tasks);
+  updateTechnicianScheduleHistoryButton(elements.techPlanningHistoryBtn, historicalCount);
+  if (!weeks.length) {
+    elements.techPlanningList.innerHTML = `<p class="muted">Aucune intervention à partir de la semaine S-1. Consulte l'historique pour voir les semaines précédentes.</p>`;
+    return;
+  }
+  weeks.forEach(({ weekStart, weekEnd, tasks: weekTasks }) => {
     const section = document.createElement("section");
     section.className = "planning-week tech-planning-week";
     section.innerHTML = `
@@ -2584,11 +2596,18 @@ function renderTechnicianSchedule() {
   elements.technicianScheduleList.innerHTML = "";
 
   if (!technicianSchedule.length) {
+    updateTechnicianScheduleHistoryButton(elements.technicianScheduleHistoryBtn, 0);
     elements.technicianScheduleList.innerHTML = `<p class="muted">Aucune intervention planifiée.</p>`;
     return;
   }
 
-  groupTodoTasksByWeek(technicianSchedule).forEach(({ weekStart, weekEnd, tasks }) => {
+  const { weeks, historicalCount } = getTechnicianScheduleWeeks(technicianSchedule);
+  updateTechnicianScheduleHistoryButton(elements.technicianScheduleHistoryBtn, historicalCount);
+  if (!weeks.length) {
+    elements.technicianScheduleList.innerHTML = `<p class="muted">Aucune intervention à partir de la semaine S-1. Consulte l'historique pour voir les semaines précédentes.</p>`;
+    return;
+  }
+  weeks.forEach(({ weekStart, weekEnd, tasks }) => {
     const section = document.createElement("section");
     const taskCount = tasks.filter((item) => item.kind !== "delivery").length;
     const deliveryCount = tasks.filter((item) => item.kind === "delivery").length;
@@ -2607,6 +2626,31 @@ function renderTechnicianSchedule() {
     renderGeoPlanningWeek(grid, weekStart, tasks);
     elements.technicianScheduleList.append(section);
   });
+}
+
+function getTechnicianScheduleWeeks(items) {
+  const allWeeks = groupTodoTasksByWeek(items);
+  const cutoff = getWeekStart(new Date());
+  cutoff.setDate(cutoff.getDate() - 7);
+  const historicalWeeks = allWeeks.filter((week) => week.weekStart < cutoff);
+  return {
+    weeks: showTechnicianScheduleHistory ? allWeeks : allWeeks.filter((week) => week.weekStart >= cutoff),
+    historicalCount: historicalWeeks.length
+  };
+}
+
+function updateTechnicianScheduleHistoryButton(button, historicalCount) {
+  button.classList.toggle("is-hidden", historicalCount === 0);
+  if (!historicalCount) return;
+  button.textContent = showTechnicianScheduleHistory
+    ? "Masquer l'historique"
+    : `Historique (${historicalCount})`;
+}
+
+function toggleTechnicianScheduleHistory() {
+  showTechnicianScheduleHistory = !showTechnicianScheduleHistory;
+  renderTechnicianSchedule();
+  renderTechPlanning();
 }
 
 function renderGeoPlanningWeek(grid, weekStart, items) {
