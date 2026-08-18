@@ -1734,8 +1734,9 @@ td small {
 
 .geo-planning-grid {
   display: grid;
-  grid-template-columns: minmax(230px, 1.5fr) repeat(7, minmax(145px, 1fr));
-  min-width: 1245px;
+  grid-template-columns: minmax(170px, 1fr) minmax(210px, 1.2fr) repeat(7, minmax(145px, 1fr));
+  min-width: 1420px;
+  grid-auto-flow: row;
   overflow: hidden;
   border: 1px solid var(--line);
   border-radius: 5px;
@@ -1750,30 +1751,43 @@ td small {
   border-bottom: 1px solid var(--line);
 }
 
-.geo-planning-project-label {
-  grid-column: 1 / -1;
-  min-height: 34px;
+.geo-planning-project-cell {
   display: flex;
-  align-items: center;
-  padding: 7px 12px;
+  flex-direction: column;
+  justify-content: center;
+  gap: 3px;
+  min-height: 62px;
+  padding: 10px 12px;
   border-right: 1px solid var(--line);
   border-bottom: 1px solid var(--line);
   border-left: 3px solid var(--accent);
-  background: #fafafa;
+  background: var(--panel-soft);
   color: var(--ink);
-  font-size: 0.78rem;
-  font-weight: 800;
+}
+
+.geo-planning-project-cell strong {
+  font-size: 0.82rem;
+}
+
+.geo-planning-project-cell small {
+  color: var(--muted);
+  font-size: 0.72rem;
 }
 
 .geo-planning-head {
   display: grid;
   place-items: center;
   padding: 8px;
-  background: #f1f2f1;
+  background: color-mix(in srgb, var(--line) 24%, var(--panel));
   color: var(--ink);
   font-size: 0.76rem;
   font-weight: 800;
   text-align: center;
+}
+
+.geo-planning-head.is-axis {
+  place-items: center start;
+  padding-left: 12px;
 }
 
 .geo-planning-head.is-today {
@@ -1785,15 +1799,19 @@ td small {
   display: flex;
   align-items: center;
   padding: 9px 12px;
-  background: #f7f7f6;
+  background: color-mix(in srgb, var(--panel-soft) 72%, var(--panel));
   color: var(--ink);
   font-size: 0.8rem;
   font-weight: 700;
 }
 
 .geo-planning-row-label.is-location {
-  padding-left: 20px;
-  border-left: 3px solid #b9bcb9;
+  padding-left: 12px;
+  border-left: 0;
+}
+
+.geo-planning-row-label.is-wide {
+  grid-column: 1 / span 2;
 }
 
 .geo-planning-cell {
@@ -1801,7 +1819,7 @@ td small {
   align-content: start;
   gap: 5px;
   padding: 7px;
-  background: #ffffff;
+  background: var(--panel);
 }
 
 .geo-planning-row-label.is-delivery,
@@ -1817,7 +1835,7 @@ td small {
   border: 1px solid var(--line);
   border-left: 3px solid var(--accent);
   border-radius: 3px;
-  background: #ffffff;
+  background: var(--panel);
   color: var(--ink);
   text-align: left;
 }
