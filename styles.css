@@ -1736,70 +1736,72 @@ td small {
   display: grid;
   grid-template-columns: minmax(230px, 1.5fr) repeat(7, minmax(145px, 1fr));
   min-width: 1245px;
-  border-top: 1px solid var(--line);
-  border-left: 1px solid var(--line);
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  background: var(--panel);
 }
 
 .geo-planning-head,
 .geo-planning-row-label,
 .geo-planning-cell {
-  min-height: 68px;
+  min-height: 62px;
   border-right: 1px solid var(--line);
   border-bottom: 1px solid var(--line);
 }
 
 .geo-planning-project-label {
   grid-column: 1 / -1;
-  min-height: 38px;
+  min-height: 34px;
   display: flex;
   align-items: center;
-  padding: 8px 12px;
+  padding: 7px 12px;
   border-right: 1px solid var(--line);
   border-bottom: 1px solid var(--line);
-  border-left: 5px solid var(--accent);
-  background: var(--panel-soft);
+  border-left: 3px solid var(--accent);
+  background: #fafafa;
   color: var(--ink);
-  font-size: 0.84rem;
-  font-weight: 900;
+  font-size: 0.78rem;
+  font-weight: 800;
 }
 
 .geo-planning-head {
   display: grid;
   place-items: center;
   padding: 8px;
-  background: var(--ink);
-  color: #ffffff;
-  font-size: 0.78rem;
-  font-weight: 900;
+  background: #f1f2f1;
+  color: var(--ink);
+  font-size: 0.76rem;
+  font-weight: 800;
   text-align: center;
 }
 
 .geo-planning-head.is-today {
-  background: var(--accent);
-  box-shadow: inset 0 -4px 0 var(--accent-yellow);
+  background: color-mix(in srgb, var(--accent) 8%, #ffffff);
+  box-shadow: inset 0 3px 0 var(--accent);
 }
 
 .geo-planning-row-label {
   display: flex;
   align-items: center;
-  padding: 10px;
-  background: var(--panel-soft);
+  padding: 9px 12px;
+  background: #f7f7f6;
   color: var(--ink);
-  font-size: 0.84rem;
-  font-weight: 900;
+  font-size: 0.8rem;
+  font-weight: 700;
 }
 
 .geo-planning-row-label.is-location {
-  padding-left: 18px;
-  border-left: 5px solid var(--accent-yellow);
+  padding-left: 20px;
+  border-left: 3px solid #b9bcb9;
 }
 
 .geo-planning-cell {
   display: grid;
   align-content: start;
-  gap: 6px;
-  padding: 6px;
-  background: var(--panel);
+  gap: 5px;
+  padding: 7px;
+  background: #ffffff;
 }
 
 .geo-planning-row-label.is-delivery,
@@ -1811,11 +1813,11 @@ td small {
   display: grid;
   gap: 4px;
   width: 100%;
-  padding: 7px;
+  padding: 8px;
   border: 1px solid var(--line);
-  border-left: 4px solid var(--accent);
-  border-radius: 2px;
-  background: var(--panel-soft);
+  border-left: 3px solid var(--accent);
+  border-radius: 3px;
+  background: #ffffff;
   color: var(--ink);
   text-align: left;
 }
@@ -1823,7 +1825,7 @@ td small {
 .geo-planning-item:hover,
 .geo-planning-item:focus-visible {
   border-color: var(--accent);
-  outline: 2px solid rgba(238, 50, 36, 0.18);
+  outline: 2px solid rgba(238, 50, 36, 0.12);
 }
 
 .geo-planning-item.is-delivery {
