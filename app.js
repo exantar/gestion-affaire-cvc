@@ -544,6 +544,7 @@ const elements = {
   technicianScheduleAssignees: document.querySelector("#technicianScheduleAssignees"),
   technicianScheduleNoteInput: document.querySelector("#technicianScheduleNoteInput"),
   technicianScheduleNewBtn: document.querySelector("#technicianScheduleNewBtn"),
+  technicianScheduleDuplicateBtn: document.querySelector("#technicianScheduleDuplicateBtn"),
   technicianScheduleDeleteBtn: document.querySelector("#technicianScheduleDeleteBtn"),
   technicianScheduleSubmitBtn: document.querySelector("#technicianScheduleSubmitBtn"),
   technicianScheduleList: document.querySelector("#technicianScheduleList"),
@@ -645,6 +646,7 @@ elements.technicianScheduleDateInput.addEventListener("change", () => {
   }
 });
 elements.technicianScheduleNewBtn.addEventListener("click", closeTechnicianScheduleEditor);
+elements.technicianScheduleDuplicateBtn.addEventListener("click", duplicateSelectedTechnicianScheduleItem);
 elements.technicianScheduleDeleteBtn.addEventListener("click", deleteSelectedTechnicianScheduleItem);
 elements.addManualTechnicianBtn.addEventListener("click", addManualTechnician);
 elements.settingsGearBtn.addEventListener("click", toggleSettingsPanel);
@@ -2873,6 +2875,7 @@ function renderTechnicianScheduleEditOptions() {
   `;
   elements.technicianScheduleEditSelect.value = technicianSchedule.some((item) => item.id === selectedTechnicianScheduleId) ? selectedTechnicianScheduleId : "";
   elements.technicianScheduleDeleteBtn.disabled = !elements.technicianScheduleEditSelect.value;
+  elements.technicianScheduleDuplicateBtn.disabled = !elements.technicianScheduleEditSelect.value;
 }
 
 function selectTechnicianScheduleItem(id) {
@@ -2964,6 +2967,24 @@ function saveTechnicianScheduleItem(event) {
   renderTechnicianSchedule();
   closeTechnicianScheduleEditor();
   renderTechPlanning();
+}
+
+function duplicateSelectedTechnicianScheduleItem() {
+  if (!requireProjectManagerAction() || !selectedTechnicianScheduleId) return;
+  const source = technicianSchedule.find((item) => item.id === selectedTechnicianScheduleId);
+  if (!source) return;
+  const copy = normalizeTechnicianScheduleItem({
+    ...source,
+    id: crypto.randomUUID(),
+    title: `${source.title} (copie)`,
+    technicians: [...source.technicians]
+  });
+  technicianSchedule.push(copy);
+  selectedTechnicianScheduleId = copy.id;
+  saveTechnicianSchedule();
+  renderTechnicianSchedule();
+  renderTechPlanning();
+  selectTechnicianScheduleItem(copy.id);
 }
 
 function deleteSelectedTechnicianScheduleItem() {
