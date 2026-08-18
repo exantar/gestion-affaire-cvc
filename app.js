@@ -528,6 +528,7 @@ const elements = {
   todoPlanningList: document.querySelector("#todoPlanningList"),
   technicianScheduleForm: document.querySelector("#technicianScheduleForm"),
   technicianScheduleOpenEditorBtn: document.querySelector("#technicianScheduleOpenEditorBtn"),
+  exportTechnicianSchedulePdfBtn: document.querySelector("#exportTechnicianSchedulePdfBtn"),
   technicianScheduleHistoryBtn: document.querySelector("#technicianScheduleHistoryBtn"),
   technicianScheduleEditSelect: document.querySelector("#technicianScheduleEditSelect"),
   technicianScheduleTitleInput: document.querySelector("#technicianScheduleTitleInput"),
@@ -631,6 +632,7 @@ elements.todoNewTaskBtn.addEventListener("click", closeTodoEditor);
 elements.todoDeleteSelectedBtn.addEventListener("click", deleteSelectedTodoFromEditor);
 elements.technicianScheduleForm.addEventListener("submit", saveTechnicianScheduleItem);
 elements.technicianScheduleOpenEditorBtn.addEventListener("click", openNewTechnicianScheduleEditor);
+elements.exportTechnicianSchedulePdfBtn.addEventListener("click", exportTechnicianSchedulePdf);
 elements.technicianScheduleHistoryBtn.addEventListener("click", toggleTechnicianScheduleHistory);
 elements.techPlanningHistoryBtn.addEventListener("click", toggleTechnicianScheduleHistory);
 elements.technicianScheduleEditSelect.addEventListener("change", () => selectTechnicianScheduleItem(elements.technicianScheduleEditSelect.value));
@@ -2654,6 +2656,15 @@ function toggleTechnicianScheduleHistory() {
   renderTechnicianSchedule();
   renderTechPlanning();
 }
+
+function exportTechnicianSchedulePdf() {
+  document.body.classList.add("print-technician-schedule");
+  window.print();
+}
+
+window.addEventListener("afterprint", () => {
+  document.body.classList.remove("print-technician-schedule");
+});
 
 function renderGeoPlanningWeek(grid, weekStart, items) {
   const days = getWeekDays(weekStart);

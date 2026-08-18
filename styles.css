@@ -1460,6 +1460,65 @@ td small {
   font-size: 0.76rem;
 }
 
+@media print {
+  @page {
+    size: landscape;
+    margin: 10mm;
+  }
+
+  body.print-technician-schedule > * {
+    visibility: hidden;
+  }
+
+  body.print-technician-schedule .app-shell,
+  body.print-technician-schedule .workspace,
+  body.print-technician-schedule #managementView,
+  body.print-technician-schedule .technician-schedule-panel,
+  body.print-technician-schedule .technician-schedule-panel * {
+    visibility: visible;
+  }
+
+  body.print-technician-schedule .app-shell,
+  body.print-technician-schedule .workspace,
+  body.print-technician-schedule #managementView {
+    display: block !important;
+  }
+
+  body.print-technician-schedule .sidebar,
+  body.print-technician-schedule .topbar,
+  body.print-technician-schedule .workspace > :not(#managementView),
+  body.print-technician-schedule #managementView > :not(.technician-schedule-panel),
+  body.print-technician-schedule .technician-schedule-panel .todo-form,
+  body.print-technician-schedule .technician-schedule-panel .panel-heading-actions {
+    display: none !important;
+  }
+
+  body.print-technician-schedule .app-shell,
+  body.print-technician-schedule .workspace,
+  body.print-technician-schedule #managementView,
+  body.print-technician-schedule .technician-schedule-panel {
+    width: 100% !important;
+    max-width: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  body.print-technician-schedule .technician-schedule-panel {
+    box-shadow: none;
+    border: 0;
+  }
+
+  body.print-technician-schedule .geo-planning-week,
+  body.print-technician-schedule .geo-planning-grid {
+    break-inside: avoid;
+  }
+
+  body.print-technician-schedule * {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+}
+
 .project-delivery-item {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);
