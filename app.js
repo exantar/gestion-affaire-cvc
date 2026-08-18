@@ -2724,7 +2724,7 @@ function renderGeoPlanningWeek(grid, weekStart, items) {
   items.filter((item) => item.kind !== "delivery").forEach((item) => {
     const projectKey = item.projectId || "outside";
     if (!projectRows.has(projectKey)) {
-      projectRows.set(projectKey, { ...getScheduleProjectInfo(item), locations: new Map() });
+      projectRows.set(projectKey, { ...getScheduleProjectInfo(item), tone: getPlanningProjectTone(projectKey), locations: new Map() });
     }
     const locations = projectRows.get(projectKey).locations;
     const locationKey = item.zone || "default";
@@ -2754,6 +2754,11 @@ function getScheduleProjectInfo(item) {
   return project ? { name: project.name, city: project.city } : { name: "Hors chantier", city: "" };
 }
 
+function getPlanningProjectTone(projectId) {
+  if (projectId === "outside") return "neutral";
+  return Math.abs([...String(projectId)].reduce((total, character) => total + character.charCodeAt(0), 0)) % 5;
+}
+
 function createGeoHeaderCell(label, isToday = false, isAxis = false) {
   const cell = document.createElement("div");
   cell.className = `geo-planning-head${isToday ? " is-today" : ""}${isAxis ? " is-axis" : ""}`;
@@ -2770,7 +2775,7 @@ function createGeoRowLabel(label, isDelivery = false, isLocation = false) {
 
 function createGeoProjectCell(project, rowCount) {
   const cell = document.createElement("div");
-  cell.className = "geo-planning-project-cell";
+  cell.className = `geo-planning-project-cell is-project-tone-${project.tone}`;
   cell.style.gridRow = `span ${Math.max(1, rowCount)}`;
   cell.innerHTML = `<strong>${escapeHtml(project.name)}</strong>${project.city ? `<small>${escapeHtml(project.city)}</small>` : ""}`;
   return cell;

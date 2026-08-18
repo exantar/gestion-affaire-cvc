@@ -1767,9 +1767,33 @@ td small {
   padding: 10px 12px;
   border-right: 1px solid var(--line);
   border-bottom: 1px solid var(--line);
-  border-left: 5px solid var(--accent);
-  background: color-mix(in srgb, var(--accent) 7%, var(--panel));
+  border-left: 5px solid var(--planning-project-tone, var(--accent));
+  background: color-mix(in srgb, var(--planning-project-tone, var(--accent)) 8%, var(--panel));
   color: var(--ink);
+}
+
+.geo-planning-project-cell.is-project-tone-0 {
+  --planning-project-tone: #dc5147;
+}
+
+.geo-planning-project-cell.is-project-tone-1 {
+  --planning-project-tone: #2f7f96;
+}
+
+.geo-planning-project-cell.is-project-tone-2 {
+  --planning-project-tone: #5d943f;
+}
+
+.geo-planning-project-cell.is-project-tone-3 {
+  --planning-project-tone: #c9822a;
+}
+
+.geo-planning-project-cell.is-project-tone-4 {
+  --planning-project-tone: #548f83;
+}
+
+.geo-planning-project-cell.is-project-tone-neutral {
+  --planning-project-tone: var(--line-strong);
 }
 
 .geo-planning-project-cell strong {
