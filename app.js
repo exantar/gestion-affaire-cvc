@@ -2640,8 +2640,10 @@ function getTechnicianScheduleWeeks(items) {
 }
 
 function updateTechnicianScheduleHistoryButton(button, historicalCount) {
-  button.classList.toggle("is-hidden", historicalCount === 0);
-  if (!historicalCount) return;
+  if (!historicalCount) {
+    button.textContent = showTechnicianScheduleHistory ? "Masquer l'historique" : "Historique";
+    return;
+  }
   button.textContent = showTechnicianScheduleHistory
     ? "Masquer l'historique"
     : `Historique (${historicalCount})`;
