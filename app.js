@@ -2658,13 +2658,27 @@ function toggleTechnicianScheduleHistory() {
 }
 
 function exportTechnicianSchedulePdf() {
-  document.body.classList.add("print-technician-schedule");
-  window.print();
-}
+  const source = document.querySelector(".technician-schedule-panel");
+  const printWindow = window.open("", "_blank", "width=1400,height=900");
+  if (!printWindow) {
+    alert("La fenêtre d'impression a été bloquée par le navigateur.");
+    return;
+  }
 
-window.addEventListener("afterprint", () => {
-  document.body.classList.remove("print-technician-schedule");
-});
+  const planning = source.cloneNode(true);
+  planning.querySelector(".todo-form")?.remove();
+  planning.querySelector(".panel-heading-actions")?.remove();
+  planning.querySelectorAll("button").forEach((button) => button.remove());
+  const stylesheetUrl = document.querySelector('link[rel="stylesheet"]')?.href || "styles.css";
+  printWindow.addEventListener("load", () => {
+    setTimeout(() => {
+      printWindow.focus();
+      printWindow.print();
+    }, 250);
+  }, { once: true });
+  printWindow.document.write(`<!doctype html><html lang="fr"><head><meta charset="utf-8"><title>Planning techniciens</title><link rel="stylesheet" href="${stylesheetUrl}"><style>@page { size: landscape; margin: 10mm; } body { margin: 0; padding: 0; background: #ffffff; } .technician-schedule-panel { width: 100%; max-width: none; border: 0; box-shadow: none; } .geo-planning-week, .geo-planning-grid { break-inside: avoid; } * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }</style></head><body>${planning.outerHTML}</body></html>`);
+  printWindow.document.close();
+}
 
 function renderGeoPlanningWeek(grid, weekStart, items) {
   const days = getWeekDays(weekStart);
