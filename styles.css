@@ -1748,6 +1748,20 @@ td small {
   border-bottom: 1px solid var(--line);
 }
 
+.geo-planning-project-label {
+  grid-column: 1 / -1;
+  min-height: 38px;
+  display: flex;
+  align-items: center;
+  padding: 8px 12px;
+  border-right: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+  background: var(--ink);
+  color: #ffffff;
+  font-size: 0.84rem;
+  font-weight: 900;
+}
+
 .geo-planning-head {
   display: grid;
   place-items: center;
@@ -1772,6 +1786,11 @@ td small {
   color: var(--ink);
   font-size: 0.84rem;
   font-weight: 900;
+}
+
+.geo-planning-row-label.is-location {
+  padding-left: 18px;
+  border-left: 5px solid var(--accent-yellow);
 }
 
 .geo-planning-cell {

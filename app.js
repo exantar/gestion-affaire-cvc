@@ -2720,33 +2720,36 @@ function getLoadedStylesheetText() {
 
 function renderGeoPlanningWeek(grid, weekStart, items) {
   const days = getWeekDays(weekStart);
-  const taskRows = new Map();
+  const projectRows = new Map();
   items.filter((item) => item.kind !== "delivery").forEach((item) => {
-    const key = getScheduleLocationKey(item);
-    if (!taskRows.has(key)) taskRows.set(key, { label: getScheduleLocationLabel(item), items: [] });
-    taskRows.get(key).items.push(item);
+    const projectKey = item.projectId || "outside";
+    if (!projectRows.has(projectKey)) {
+      projectRows.set(projectKey, { label: getScheduleProjectLabel(item), locations: new Map() });
+    }
+    const locations = projectRows.get(projectKey).locations;
+    const locationKey = item.zone || "default";
+    if (!locations.has(locationKey)) locations.set(locationKey, { label: item.zone || "Localisation à préciser", items: [] });
+    locations.get(locationKey).items.push(item);
   });
 
   grid.append(createGeoHeaderCell("Chantier / localisation"));
   days.forEach((day) => grid.append(createGeoHeaderCell(`${formatWeekday(day)} ${formatShortDate(day)}`, isSameDay(day, new Date()))));
 
-  [...taskRows.values()].sort((left, right) => left.label.localeCompare(right.label, "fr")).forEach((row) => {
-    grid.append(createGeoRowLabel(row.label));
-    days.forEach((day) => grid.append(createGeoDayCell(row.items.filter((item) => scheduleItemOccursOnDay(item, day)))));
+  [...projectRows.values()].sort((left, right) => left.label.localeCompare(right.label, "fr")).forEach((project) => {
+    grid.append(createGeoProjectLabel(project.label));
+    [...project.locations.values()].sort((left, right) => left.label.localeCompare(right.label, "fr")).forEach((location) => {
+      grid.append(createGeoRowLabel(location.label, false, true));
+      days.forEach((day) => grid.append(createGeoDayCell(location.items.filter((item) => scheduleItemOccursOnDay(item, day)))));
+    });
   });
 
   grid.append(createGeoRowLabel("Livraisons prévues", true));
   days.forEach((day) => grid.append(createGeoDayCell(items.filter((item) => item.kind === "delivery" && scheduleItemOccursOnDay(item, day)), true)));
 }
 
-function getScheduleLocationKey(item) {
-  return `${item.projectId || "outside"}::${item.zone || "default"}`;
-}
-
-function getScheduleLocationLabel(item) {
+function getScheduleProjectLabel(item) {
   const project = projects.find((project) => project.id === item.projectId);
-  const chantier = project ? `${project.name} - ${project.city}` : "Hors chantier";
-  return item.zone ? `${chantier} · ${item.zone}` : chantier;
+  return project ? `${project.name} - ${project.city}` : "Hors chantier";
 }
 
 function createGeoHeaderCell(label, isToday = false) {
@@ -2756,9 +2759,16 @@ function createGeoHeaderCell(label, isToday = false) {
   return cell;
 }
 
-function createGeoRowLabel(label, isDelivery = false) {
+function createGeoRowLabel(label, isDelivery = false, isLocation = false) {
   const cell = document.createElement("div");
-  cell.className = `geo-planning-row-label${isDelivery ? " is-delivery" : ""}`;
+  cell.className = `geo-planning-row-label${isDelivery ? " is-delivery" : ""}${isLocation ? " is-location" : ""}`;
+  cell.textContent = label;
+  return cell;
+}
+
+function createGeoProjectLabel(label) {
+  const cell = document.createElement("div");
+  cell.className = "geo-planning-project-label";
   cell.textContent = label;
   return cell;
 }
