@@ -373,6 +373,7 @@ const elements = {
   authPasswordInput: document.querySelector("#authPasswordInput"),
   authLoginBtn: document.querySelector("#authLoginBtn"),
   authSignupBtn: document.querySelector("#authSignupBtn"),
+  authResendConfirmationBtn: document.querySelector("#authResendConfirmationBtn"),
   authMessage: document.querySelector("#authMessage"),
   userBadge: document.querySelector("#userBadge"),
   logoutBtn: document.querySelector("#logoutBtn"),
@@ -569,6 +570,7 @@ document.querySelectorAll(".section-tab").forEach((button) => {
 elements.projectSpaceBtn.addEventListener("click", () => setActiveSpace("chantiers"));
 elements.authForm.addEventListener("submit", signInUser);
 elements.authSignupBtn.addEventListener("click", signUpUser);
+elements.authResendConfirmationBtn.addEventListener("click", resendAuthConfirmation);
 elements.logoutBtn.addEventListener("click", signOutUser);
 elements.goNoGoSpaceBtn.addEventListener("click", () => setActiveSpace("gonogo"));
 elements.todoSpaceBtn.addEventListener("click", () => setActiveSpace("todolist"));
@@ -945,35 +947,59 @@ async function initAuth() {
     return;
   }
 
-  const { data: { session } = {} } = await remoteStore.client.auth.getSession();
-  currentUser = session?.user || null;
-  await loadCurrentProfile();
-  authReady = true;
-  applyAuthState();
-
-  remoteStore.client.auth.onAuthStateChange(async (_event, session) => {
+  try {
+    const { data: { session } = {}, error } = await remoteStore.client.auth.getSession();
+    if (error) throw error;
     currentUser = session?.user || null;
     await loadCurrentProfile();
+    authReady = true;
     applyAuthState();
-    if (currentUser) syncFromRemote();
-  });
 
-  if (currentUser) syncFromRemote();
+    remoteStore.client.auth.onAuthStateChange(async (_event, session) => {
+      currentUser = session?.user || null;
+      await loadCurrentProfile();
+      applyAuthState();
+      if (currentUser) syncFromRemote();
+    });
+
+    if (currentUser) syncFromRemote();
+  } catch (error) {
+    console.error("Initialisation de connexion impossible", error);
+    currentUser = null;
+    authReady = true;
+    elements.appShell.classList.add("is-hidden");
+    elements.authView.classList.remove("is-hidden");
+    setAuthMessage(authErrorMessage(error), true);
+  }
 }
 
 async function signInUser(event) {
   event.preventDefault();
   setAuthMessage("Connexion en cours...");
-  const { error } = await remoteStore.client.auth.signInWithPassword({
-    email: elements.authEmailInput.value.trim(),
-    password: elements.authPasswordInput.value
-  });
-  if (error) {
-    setAuthMessage("Connexion impossible : vérifie l'email et le mot de passe.", true);
-    return;
+  try {
+    const { error } = await remoteStore.client.auth.signInWithPassword({
+      email: elements.authEmailInput.value.trim(),
+      password: elements.authPasswordInput.value
+    });
+    if (error) {
+      setAuthMessage(authErrorMessage(error), true);
+      return;
+    }
+    elements.authPasswordInput.value = "";
+    setAuthMessage("");
+  } catch (error) {
+    console.error("Connexion Supabase impossible", error);
+    setAuthMessage(authErrorMessage(error), true);
   }
-  elements.authPasswordInput.value = "";
-  setAuthMessage("");
+}
+
+function authErrorMessage(error) {
+  const message = String(error?.message || "").toLowerCase();
+  if (message.includes("email not confirmed")) return "Confirme d'abord l'adresse email via le message reçu de Supabase.";
+  if (message.includes("invalid login credentials")) return "Email ou mot de passe incorrect.";
+  if (message.includes("failed to fetch") || message.includes("network") || message.includes("load failed")) return "Le service de connexion est inaccessible. Vérifie la connexion internet du téléphone puis réessaie.";
+  if (message.includes("rate limit")) return "Trop de tentatives. Attends quelques minutes avant de réessayer.";
+  return `Connexion impossible : ${error?.message || "erreur inconnue"}`;
 }
 
 async function signUpUser() {
@@ -993,7 +1019,31 @@ async function signUpUser() {
     setAuthMessage(`Création impossible : ${error.message}`, true);
     return;
   }
-  setAuthMessage("Compte créé. Si Supabase demande une confirmation email, valide le mail avant connexion.");
+  setAuthMessage("Compte créé. Valide le mail de confirmation avant de te connecter.");
+}
+
+async function resendAuthConfirmation() {
+  const email = elements.authEmailInput.value.trim();
+  if (!email) {
+    setAuthMessage("Indique d'abord ton adresse email.", true);
+    return;
+  }
+  setAuthMessage("Envoi du mail de confirmation...");
+  try {
+    const { error } = await remoteStore.client.auth.resend({
+      type: "signup",
+      email,
+      options: { emailRedirectTo: window.location.origin }
+    });
+    if (error) {
+      setAuthMessage(`Envoi impossible : ${error.message}`, true);
+      return;
+    }
+    setAuthMessage("Mail de confirmation envoyé. Ouvre-le depuis ton téléphone puis reviens te connecter.");
+  } catch (error) {
+    console.error("Renvoi de confirmation impossible", error);
+    setAuthMessage(authErrorMessage(error), true);
+  }
 }
 
 async function signOutUser() {
