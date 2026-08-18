@@ -539,6 +539,7 @@ const elements = {
   technicianScheduleOrderStatusField: document.querySelector("#technicianScheduleOrderStatusField"),
   technicianScheduleOrderStatusInput: document.querySelector("#technicianScheduleOrderStatusInput"),
   technicianScheduleDateInput: document.querySelector("#technicianScheduleDateInput"),
+  technicianScheduleEndDateInput: document.querySelector("#technicianScheduleEndDateInput"),
   technicianScheduleReadyInput: document.querySelector("#technicianScheduleReadyInput"),
   technicianScheduleAssignees: document.querySelector("#technicianScheduleAssignees"),
   technicianScheduleNoteInput: document.querySelector("#technicianScheduleNoteInput"),
@@ -638,6 +639,11 @@ elements.techPlanningHistoryBtn.addEventListener("click", toggleTechnicianSchedu
 elements.technicianScheduleEditSelect.addEventListener("change", () => selectTechnicianScheduleItem(elements.technicianScheduleEditSelect.value));
 elements.technicianScheduleKindInput.addEventListener("change", updateTechnicianScheduleKindFields);
 elements.technicianScheduleProjectInput.addEventListener("change", renderTechnicianScheduleZoneOptions);
+elements.technicianScheduleDateInput.addEventListener("change", () => {
+  if (elements.technicianScheduleEndDateInput.value < elements.technicianScheduleDateInput.value) {
+    elements.technicianScheduleEndDateInput.value = elements.technicianScheduleDateInput.value;
+  }
+});
 elements.technicianScheduleNewBtn.addEventListener("click", closeTechnicianScheduleEditor);
 elements.technicianScheduleDeleteBtn.addEventListener("click", deleteSelectedTechnicianScheduleItem);
 elements.addManualTechnicianBtn.addEventListener("click", addManualTechnician);
@@ -668,6 +674,7 @@ applySettings();
 elements.techDateInput.value = todayString();
 elements.todoDueInput.value = todayString();
 elements.technicianScheduleDateInput.value = todayString();
+elements.technicianScheduleEndDateInput.value = todayString();
 initAuth();
 
 function loadProjects() {
@@ -854,6 +861,7 @@ function normalizeTechnicianScheduleItem(item) {
     zone: item.zone || "",
     orderStatus: ["a_faire", "en_cours", "faite"].includes(item.orderStatus) ? item.orderStatus : "a_faire",
     date: item.date || todayString(),
+    endDate: item.endDate && item.endDate >= (item.date || todayString()) ? item.endDate : (item.date || todayString()),
     ready: Boolean(item.ready),
     technicians: Array.isArray(item.technicians) ? item.technicians.filter(Boolean) : [],
     note: item.note || ""
@@ -1547,7 +1555,7 @@ function renderTechPlanning() {
 
     const grid = section.querySelector(".planning-week-grid");
     getWeekDays(weekStart).forEach((day) => {
-      const dayTasks = weekTasks.filter((task) => isSameDay(parseTodoDate(task.date), day));
+      const dayTasks = weekTasks.filter((task) => scheduleItemOccursOnDay(task, day));
       const column = document.createElement("div");
       column.className = `planning-day${isSameDay(day, new Date()) ? " is-today" : ""}`;
       column.innerHTML = `
@@ -2631,7 +2639,7 @@ function renderTechnicianSchedule() {
 }
 
 function getTechnicianScheduleWeeks(items) {
-  const allWeeks = groupTodoTasksByWeek(items);
+  const allWeeks = groupTechnicianScheduleByWeek(items);
   const cutoff = getWeekStart(new Date());
   cutoff.setDate(cutoff.getDate() - 7);
   const historicalWeeks = allWeeks.filter((week) => week.weekStart < cutoff);
@@ -2639,6 +2647,27 @@ function getTechnicianScheduleWeeks(items) {
     weeks: showTechnicianScheduleHistory ? allWeeks : allWeeks.filter((week) => week.weekStart >= cutoff),
     historicalCount: historicalWeeks.length
   };
+}
+
+function groupTechnicianScheduleByWeek(items) {
+  const groups = new Map();
+  items.forEach((item) => {
+    const firstWeek = getWeekStart(parseTodoDate(item.date));
+    const lastWeek = getWeekStart(parseTodoDate(item.endDate || item.date));
+    for (let weekStart = firstWeek; weekStart <= lastWeek; weekStart = addDays(weekStart, 7)) {
+      const key = toDateKey(weekStart);
+      if (!groups.has(key)) groups.set(key, { weekStart, weekEnd: addDays(weekStart, 6), tasks: [] });
+      groups.get(key).tasks.push(item);
+    }
+  });
+  return [...groups.values()].sort((left, right) => left.weekStart - right.weekStart);
+}
+
+function scheduleItemOccursOnDay(item, day) {
+  const start = startOfDay(parseTodoDate(item.date));
+  const end = startOfDay(parseTodoDate(item.endDate || item.date));
+  const target = startOfDay(day);
+  return target >= start && target <= end;
 }
 
 function updateTechnicianScheduleHistoryButton(button, historicalCount) {
@@ -2701,11 +2730,11 @@ function renderGeoPlanningWeek(grid, weekStart, items) {
 
   [...taskRows.values()].sort((left, right) => left.label.localeCompare(right.label, "fr")).forEach((row) => {
     grid.append(createGeoRowLabel(row.label));
-    days.forEach((day) => grid.append(createGeoDayCell(row.items.filter((item) => isSameDay(parseTodoDate(item.date), day)))));
+    days.forEach((day) => grid.append(createGeoDayCell(row.items.filter((item) => scheduleItemOccursOnDay(item, day)))));
   });
 
   grid.append(createGeoRowLabel("Livraisons prévues", true));
-  days.forEach((day) => grid.append(createGeoDayCell(items.filter((item) => item.kind === "delivery" && isSameDay(parseTodoDate(item.date), day)), true)));
+  days.forEach((day) => grid.append(createGeoDayCell(items.filter((item) => item.kind === "delivery" && scheduleItemOccursOnDay(item, day)), true)));
 }
 
 function getScheduleLocationKey(item) {
@@ -2860,6 +2889,7 @@ function selectTechnicianScheduleItem(id) {
   elements.technicianScheduleZoneInput.value = item.zone;
   elements.technicianScheduleOrderStatusInput.value = item.orderStatus || "a_faire";
   elements.technicianScheduleDateInput.value = item.date;
+  elements.technicianScheduleEndDateInput.value = item.endDate || item.date;
   elements.technicianScheduleReadyInput.checked = item.ready;
   elements.technicianScheduleNoteInput.value = item.note;
   renderTechnicianScheduleAssignees(item.technicians);
@@ -2884,6 +2914,7 @@ function clearTechnicianScheduleEditor() {
   selectedTechnicianScheduleId = "";
   elements.technicianScheduleForm.reset();
   elements.technicianScheduleDateInput.value = todayString();
+  elements.technicianScheduleEndDateInput.value = todayString();
   elements.technicianScheduleReadyInput.checked = false;
   elements.technicianScheduleKindInput.value = "task";
   elements.technicianScheduleOrderStatusInput.value = "a_faire";
@@ -2906,12 +2937,17 @@ function saveTechnicianScheduleItem(event) {
     zone: elements.technicianScheduleZoneInput.value.trim(),
     orderStatus: elements.technicianScheduleOrderStatusInput.value,
     date: elements.technicianScheduleDateInput.value,
+    endDate: elements.technicianScheduleEndDateInput.value,
     ready: elements.technicianScheduleReadyInput.checked,
     technicians: getSelectedTechnicianScheduleAssignees(),
     note: elements.technicianScheduleNoteInput.value.trim()
   };
   if (values.kind !== "delivery" && !values.technicians.length) {
     alert("Affecte au moins un technicien à cette intervention.");
+    return;
+  }
+  if (values.endDate < values.date) {
+    alert("La date de fin doit être égale ou postérieure à la date de début.");
     return;
   }
 
