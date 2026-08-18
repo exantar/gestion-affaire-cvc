@@ -1466,24 +1466,7 @@ td small {
     margin: 10mm;
   }
 
-  body.print-technician-schedule > * {
-    visibility: hidden;
-  }
-
-  body.print-technician-schedule .app-shell,
-  body.print-technician-schedule .workspace,
-  body.print-technician-schedule #managementView,
-  body.print-technician-schedule .technician-schedule-panel,
-  body.print-technician-schedule .technician-schedule-panel * {
-    visibility: visible;
-  }
-
-  body.print-technician-schedule .app-shell,
-  body.print-technician-schedule .workspace,
-  body.print-technician-schedule #managementView {
-    display: block !important;
-  }
-
+  body.print-technician-schedule #authView,
   body.print-technician-schedule .sidebar,
   body.print-technician-schedule .topbar,
   body.print-technician-schedule .workspace > :not(#managementView),
@@ -1497,6 +1480,7 @@ td small {
   body.print-technician-schedule .workspace,
   body.print-technician-schedule #managementView,
   body.print-technician-schedule .technician-schedule-panel {
+    display: block !important;
     width: 100% !important;
     max-width: none !important;
     margin: 0 !important;
