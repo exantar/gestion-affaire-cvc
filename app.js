@@ -2484,8 +2484,8 @@ function openNewTodoEditor() {
 }
 
 function closeTodoEditor() {
-  clearTodoEditor();
   elements.todoTaskForm.classList.add("is-hidden");
+  clearTodoEditor();
 }
 
 function clearTodoEditor() {
@@ -3050,8 +3050,8 @@ function openNewTechnicianScheduleEditor() {
 }
 
 function closeTechnicianScheduleEditor() {
-  clearTechnicianScheduleEditor();
   elements.technicianScheduleForm.classList.add("is-hidden");
+  clearTechnicianScheduleEditor();
 }
 
 function clearTechnicianScheduleEditor() {
@@ -3106,8 +3106,8 @@ function saveTechnicianScheduleItem(event) {
   }
   saveTechnicianSchedule();
   renderTechnicianSchedule();
-  closeTechnicianScheduleEditor();
   renderTechPlanning();
+  closeTechnicianScheduleEditor();
 }
 
 function duplicateSelectedTechnicianScheduleItem() {
